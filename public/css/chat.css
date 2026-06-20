@@ -1,0 +1,185 @@
+/* Chat Panel Styles */
+
+.chat-panel {
+    width: 100%;
+    max-width: 400px;
+    margin-top: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    height: 150px;
+    overflow-y: auto;
+    padding: 10px;
+    font-size: 0.85rem;
+}
+
+.chat-message {
+    margin-bottom: 5px;
+    padding: 3px 0;
+    line-height: 1.3;
+}
+
+.chat-message .player-name {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.chat-message.system {
+    color: #999;
+    font-style: italic;
+}
+
+.chat-input-group {
+    display: flex;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input-group input {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.chat-input-group input::placeholder {
+    color: #999;
+}
+
+.chat-input-group button {
+    padding: 8px 15px;
+    border: none;
+    background: #4CAF50;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.chat-input-group button:hover {
+    background: #45a049;
+}
+
+/* Waiting Room Styles */
+.waiting-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+}
+
+.waiting-container h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+.room-code {
+    color: #4CAF50;
+    font-family: monospace;
+    font-size: 1.8rem;
+    letter-spacing: 3px;
+}
+
+.waiting-players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 25px;
+    min-height: 50px;
+}
+
+.waiting-player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.2);
+    font-weight: bold;
+}
+
+.waiting-player .player-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.waiting-player.is-bot {
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.waiting-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.waiting-info {
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.secondary-btn {
+    padding: 12px 25px;
+    border: 2px solid #fff;
+    border-radius: 10px;
+    background: transparent;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.join-group {
+    display: flex;
+    gap: 10px;
+}
+
+.join-group input {
+    flex: 1;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    outline: none;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.join-group input::placeholder {
+    color: #999;
+    letter-spacing: normal;
+}
+
+.divider {
+    margin: 20px 0;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.lobby-actions {
+    margin-top: 10px;
+}

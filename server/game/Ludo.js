@@ -1,0 +1,206 @@
+// Server-side Ludo Game Logic
+
+class LudoGame {
+    constructor(numPlayers) {
+        this.numPlayers = numPlayers;
+        this.players = [];
+        this.currentPlayer = 0;
+        this.diceValue = 0;
+        this.consecutiveSixes = 0;
+        this.gameOver = false;
+        this.winner = null;
+        
+        // Initialize players
+        const colors = ['red', 'yellow', 'blue', 'green'];
+        for (let i = 0; i < numPlayers; i++) {
+            this.players.push({
+                id: i,
+                color: colors[i],
+                name: colors[i].charAt(0).toUpperCase() + colors[i].slice(1),
+                tokens: [],
+                isBot: false
+            });
+        }
+        
+        // Initialize tokens
+        this.players.forEach(player => {
+            for (let i = 0; i < 4; i++) {
+                player.tokens.push({
+                    id: i,
+                    position: -1,
+                    homeColumn: false,
+                    finished: false
+                });
+            }
+        });
+        
+        // Track layout
+        this.startPositions = [0, 13, 26, 39];
+        this.homeEntries = [50, 11, 24, 37];
+        this.safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+    }
+    
+    rollDice() {
+        this.diceValue = Math.floor(Math.random() * 6) + 1;
+        return this.diceValue;
+    }
+    
+    getCurrentPlayer() {
+        return this.players[this.currentPlayer];
+    }
+    
+    canRoll(socketId) {
+        if (this.gameOver) return false;
+        const player = this.getPlayerBySocketId(socketId);
+        if (!player || player.id !== this.currentPlayer) return false;
+        return this.diceValue === 0;
+    }
+    
+    getPlayerBySocketId(socketId) {
+        return this.players.find(p => p.socketId === socketId);
+    }
+    
+    getSelectableTokens(player) {
+        const selectable = [];
+        player.tokens.forEach((token, index) => {
+            if (this.canMoveToken(player, index)) {
+                selectable.push(index);
+            }
+        });
+        return selectable;
+    }
+    
+    canMoveToken(player, tokenIndex) {
+        const token = player.tokens[tokenIndex];
+        if (token.finished) return false;
+        
+        if (token.position === -1) {
+            return this.diceValue === 6;
+        }
+        
+        if (token.homeColumn) {
+            const homeColPos = token.position - 52;
+            return (homeColPos + this.diceValue) <= 6;
+        }
+        
+        return true;
+    }
+    
+    moveToken(player, tokenIndex) {
+        const token = player.tokens[tokenIndex];
+        const playerIndex = this.players.indexOf(player);
+        
+        if (token.position === -1) {
+            token.position = this.startPositions[playerIndex];
+            this.checkCapture(player, tokenIndex);
+            return { type: 'enter', position: token.position, captured: null };
+        }
+        
+        if (token.homeColumn) {
+            const homeColPos = token.position - 52;
+            const newPos = homeColPos + this.diceValue;
+            
+            if (newPos === 6) {
+                token.finished = true;
+                token.position = -2;
+                this.checkWin(player);
+                return { type: 'finish', tokenIndex, captured: null };
+            }
+            
+            token.position = 52 + newPos;
+            return { type: 'homeColumn', position: token.position, captured: null };
+        }
+        
+        const oldPos = token.position;
+        let newPos = (token.position + this.diceValue) % 52;
+        const homeEntry = this.homeEntries[playerIndex];
+        
+        // Check if token crosses home entry (handles wrapping correctly)
+        const distanceToHomeEntry = (homeEntry - oldPos + 52) % 52;
+        if (distanceToHomeEntry < this.diceValue) {
+            const homeColPos = this.diceValue - distanceToHomeEntry - 1;
+            if (homeColPos < 6) {
+                token.homeColumn = true;
+                token.position = 52 + homeColPos;
+                
+                if (homeColPos === 5) {
+                    token.finished = true;
+                    token.position = -2;
+                    this.checkWin(player);
+                    return { type: 'finish', tokenIndex, captured: null };
+                }
+                
+                return { type: 'enterHome', position: token.position, captured: null };
+            }
+        }
+        
+        token.position = newPos;
+        const captured = this.checkCapture(player, tokenIndex);
+        
+        return { type: 'move', from: oldPos, to: newPos, captured };
+    }
+    
+    checkCapture(player, tokenIndex) {
+        const token = player.tokens[tokenIndex];
+        const captured = [];
+        
+        this.players.forEach(opponent => {
+            if (opponent.id === player.id) return;
+            
+            opponent.tokens.forEach((oppToken, oppIndex) => {
+                if (oppToken.position === token.position && !oppToken.homeColumn && !oppToken.finished) {
+                    oppToken.position = -1;
+                    oppToken.homeColumn = false;
+                    captured.push({ playerId: opponent.id, tokenId: oppIndex });
+                }
+            });
+        });
+        
+        return captured.length > 0 ? captured : null;
+    }
+    
+    checkWin(player) {
+        const allFinished = player.tokens.every(token => token.finished);
+        if (allFinished) {
+            this.gameOver = true;
+            this.winner = player;
+        }
+    }
+    
+    endTurn() {
+        if (this.diceValue !== 6) {
+            this.currentPlayer = (this.currentPlayer + 1) % this.numPlayers;
+            this.consecutiveSixes = 0;
+        } else {
+            this.consecutiveSixes++;
+            if (this.consecutiveSixes >= 3) {
+                this.currentPlayer = (this.currentPlayer + 1) % this.numPlayers;
+                this.consecutiveSixes = 0;
+            }
+        }
+        this.diceValue = 0;
+    }
+    
+    getState() {
+        return {
+            currentPlayer: this.currentPlayer,
+            diceValue: this.diceValue,
+            gameOver: this.gameOver,
+            winner: this.winner ? { id: this.winner.id, name: this.winner.name, color: this.winner.color } : null,
+            players: this.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                color: p.color,
+                isBot: p.isBot,
+                tokens: p.tokens.map(t => ({
+                    id: t.id,
+                    position: t.position,
+                    homeColumn: t.homeColumn,
+                    finished: t.finished
+                }))
+            }))
+        };
+    }
+}
+
+module.exports = LudoGame;

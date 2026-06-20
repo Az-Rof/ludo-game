@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo Game</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/board.css">
+    <link rel="stylesheet" href="css/chat.css">
+</head>
+<body>
+    <!-- Lobby Screen -->
+    <div id="lobby" class="screen active">
+        <div class="lobby-container">
+            <h1>🎲 LUDO</h1>
+            
+            <div class="input-group">
+                <label for="username">Your Name</label>
+                <input type="text" id="username" placeholder="Enter your name" maxlength="15">
+            </div>
+            
+            <div class="lobby-actions">
+                <button id="create-room-btn" class="primary-btn">CREATE ROOM</button>
+                <div class="divider">OR</div>
+                <div class="join-group">
+                    <input type="text" id="room-code-input" placeholder="Room Code" maxlength="6" style="text-transform: uppercase">
+                    <button id="join-room-btn" class="secondary-btn">JOIN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting Room Screen -->
+    <div id="waiting-room" class="screen">
+        <div class="waiting-container">
+            <h2>Room: <span id="room-code" class="room-code"></span></h2>
+            <div id="waiting-players" class="waiting-players"></div>
+            <div class="waiting-actions">
+                <button id="add-bot-btn" class="secondary-btn">+ ADD BOT</button>
+                <button id="start-game-btn" class="primary-btn" disabled>START GAME</button>
+            </div>
+            <div class="waiting-info">Waiting for players... (min 2 to start)</div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game" class="screen">
+        <div class="game-container">
+            <!-- Player Info Bar -->
+            <div id="player-bar" class="player-bar"></div>
+            
+            <!-- Board Area -->
+            <div class="board-wrapper">
+                <canvas id="board-canvas"></canvas>
+                <div id="board-grid" class="board-grid"></div>
+            </div>
+            
+            <!-- Dice Area -->
+            <div class="dice-area">
+                <div id="dice" class="dice" title="Click to roll">
+                    <div class="dot dot-1"></div>
+                    <div class="dot dot-2"></div>
+                    <div class="dot dot-3"></div>
+                    <div class="dot dot-7"></div>
+                    <div class="dot dot-4"></div>
+                    <div class="dot dot-5"></div>
+                    <div class="dot dot-6"></div>
+                </div>
+                <div id="dice-value" class="dice-value"></div>
+            </div>
+            
+            <!-- Status -->
+            <div id="status" class="status"></div>
+            
+            <!-- Chat Panel -->
+            <div id="chat-panel" class="chat-panel">
+                <div id="chat-messages" class="chat-messages"></div>
+                <div class="chat-input-group">
+                    <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100">
+                    <button id="chat-send-btn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory" class="screen">
+        <div class="victory-container">
+            <h1>🏆 VICTORY!</h1>
+            <div id="winner-name" class="winner-name"></div>
+            <button id="play-again-btn" class="primary-btn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/socket-client.js?v=2"></script>
+    <script src="js/ui.js?v=2"></script>
+    <script src="js/dice.js?v=2"></script>
+    <script src="js/board-v2.js"></script>
+    <script src="js/game.js?v=2"></script>
+    <script src="js/main.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+/* Ludo Board Styles */
+
+/* Board Cell Colors */
+.cell {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.7rem;
+    position: relative;
+}
+
+/* Home bases (corners) */
+.cell.home-red { background: #e74c3c; }
+.cell.home-blue { background: #3498db; }
+.cell.home-green { background: #2ecc71; }
+.cell.home-yellow { background: #f1c40f; }
+
+/* Safe squares (stars) */
+.cell.safe {
+    background: #fff;
+}
+
+.cell.safe::after {
+    content: '⭐';
+    font-size: 0.8rem;
+}
+
+/* Home columns */
+.cell.home-col-red { background: #e74c3c; opacity: 0.7; }
+.cell.home-col-blue { background: #3498db; opacity: 0.7; }
+.cell.home-col-green { background: #2ecc71; opacity: 0.7; }
+.cell.home-col-yellow { background: #f1c40f; opacity: 0.7; }
+
+/* Center (win zone) */
+.cell.center {
+    background: linear-gradient(135deg, #e74c3c 25%, #3498db 25%, #3498db 50%, #2ecc71 50%, #2ecc71 75%, #f1c40f 75%);
+}
+
+/* Path cells */
+.cell.path {
+    background: #ecf0f1;
+}
+
+/* Empty cells */
+.cell.empty {
+    background: #1a1a2e;
+}
+
+/* Token on board */
+.token {
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    position: absolute;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 20;
+}
+
+.token:hover {
+    transform: scale(1.1);
+}
+
+.token.red { background: #e74c3c; }
+.token.blue { background: #3498db; }
+.token.green { background: #2ecc71; }
+.token.yellow { background: #f1c40f; }
+
+.token.selectable {
+    animation: pulse-token 0.5s infinite;
+    box-shadow: 0 0 10px currentColor;
+}
+
+@keyframes pulse-token {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+.token.moving {
+    transition: all 0.2s ease;
+}
+
+/* Token in home base */
+.token.in-home {
+    width: 50%;
+    height: 50%;
+}
+
+/* Token count badge */
+.token-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #333;
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #fff;
+}
