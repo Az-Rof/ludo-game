@@ -147,10 +147,10 @@ class LudoBoard {
     }
     
     getHomeColumnColor(r, c) {
-        if (c === 7 && r >= 1 && r <= 6) return this.colors.red;      // Top → center
-        if (r === 7 && c >= 8 && c <= 13) return this.colors.yellow;   // Right → center
-        if (c === 7 && r >= 8 && r <= 13) return this.colors.blue;     // Bottom → center
-        if (r === 7 && c >= 1 && c <= 6) return this.colors.green;     // Left → center
+        if (c === 7 && r >= 1 && r <= 5) return this.colors.red;      // Top → center (stops before row 6)
+        if (r === 7 && c >= 9 && c <= 13) return this.colors.yellow;   // Right → center (stops before col 8)
+        if (c === 7 && r >= 9 && r <= 13) return this.colors.blue;     // Bottom → center (stops before row 8)
+        if (r === 7 && c >= 1 && c <= 5) return this.colors.green;     // Left → center (stops before col 6)
         return this.colors.white;
     }
     
@@ -318,21 +318,21 @@ class LudoBoard {
         ctx.font = `bold ${cs * 0.45}px Arial`;
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         
-        // Red HOME (top path, near center at row 6)
-        ctx.fillText('HOME', 7 * cs, 6.5 * cs);
+        // Red HOME (col 7, row 6)
+        ctx.fillText('HOME', 7.5 * cs, 6.5 * cs);
         
-        // Yellow HOME (right path, near center at col 8)
+        // Yellow HOME (row 7, col 8)
         ctx.save();
-        ctx.translate(8.5 * cs, 7 * cs);
+        ctx.translate(8.5 * cs, 7.5 * cs);
         ctx.fillText('HOME', 0, 0);
         ctx.restore();
         
-        // Blue HOME (bottom path, near center at row 8)
-        ctx.fillText('HOME', 7 * cs, 8.5 * cs);
+        // Blue HOME (col 7, row 8)
+        ctx.fillText('HOME', 7.5 * cs, 8.5 * cs);
         
-        // Green HOME (left path, near center at col 6)
+        // Green HOME (row 7, col 6)
         ctx.save();
-        ctx.translate(6.5 * cs, 7 * cs);
+        ctx.translate(6.5 * cs, 7.5 * cs);
         ctx.fillText('HOME', 0, 0);
         ctx.restore();
         
@@ -341,20 +341,20 @@ class LudoBoard {
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
         
         // Red BACK (top of home column at row 1)
-        ctx.fillText('BACK', 7 * cs, 1.5 * cs);
+        ctx.fillText('BACK', 7.5 * cs, 1.5 * cs);
         
         // Yellow BACK (right of home column at col 13)
         ctx.save();
-        ctx.translate(13.5 * cs, 7 * cs);
+        ctx.translate(13.5 * cs, 7.5 * cs);
         ctx.fillText('BACK', 0, 0);
         ctx.restore();
         
         // Blue BACK (bottom of home column at row 13)
-        ctx.fillText('BACK', 7 * cs, 13.5 * cs);
+        ctx.fillText('BACK', 7.5 * cs, 13.5 * cs);
         
         // Green BACK (left of home column at col 1)
         ctx.save();
-        ctx.translate(1.5 * cs, 7 * cs);
+        ctx.translate(1.5 * cs, 7.5 * cs);
         ctx.fillText('BACK', 0, 0);
         ctx.restore();
     }
@@ -451,12 +451,12 @@ class LudoBoard {
     getHomeColumnPosition(playerIndex, position) {
         // playerIndex: 0=Red, 1=Yellow, 2=Blue, 3=Green
         // position: 0 = first square after entering, 5 = last square before center
-        // Home columns end at the edge of center area (rows 6-8, cols 6-8)
+        // Home columns end ONE cell before center area (rows 6-8, cols 6-8)
         const columns = [
-            [{r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 6, c: 7}],  // Red (top → center)
-            [{r: 7, c: 13}, {r: 7, c: 12}, {r: 7, c: 11}, {r: 7, c: 10}, {r: 7, c: 9}, {r: 7, c: 8}], // Yellow (right → center)
-            [{r: 13, c: 7}, {r: 12, c: 7}, {r: 11, c: 7}, {r: 10, c: 7}, {r: 9, c: 7}, {r: 8, c: 7}], // Blue (bottom → center)
-            [{r: 7, c: 1}, {r: 7, c: 2}, {r: 7, c: 3}, {r: 7, c: 4}, {r: 7, c: 5}, {r: 7, c: 6}]   // Green (left → center)
+            [{r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 5, c: 7}],  // Red (top → center, last pos overlaps at row 5)
+            [{r: 7, c: 13}, {r: 7, c: 12}, {r: 7, c: 11}, {r: 7, c: 10}, {r: 7, c: 9}, {r: 7, c: 9}], // Yellow (right → center, last pos overlaps at col 9)
+            [{r: 13, c: 7}, {r: 12, c: 7}, {r: 11, c: 7}, {r: 10, c: 7}, {r: 9, c: 7}, {r: 9, c: 7}], // Blue (bottom → center, last pos overlaps at row 9)
+            [{r: 7, c: 1}, {r: 7, c: 2}, {r: 7, c: 3}, {r: 7, c: 4}, {r: 7, c: 5}, {r: 7, c: 5}]   // Green (left → center, last pos overlaps at col 5)
         ];
         
         return columns[playerIndex][position];
