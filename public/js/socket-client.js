@@ -17,6 +17,7 @@ class SocketClient {
         this.onTokenMoved = null;
         this.onTokenCaptured = null;
         this.onTurnEnded = null;
+        this.onExtraTurn = null;
         this.onGameOver = null;
         this.onChatMessage = null;
         this.onNoMoves = null;
@@ -79,6 +80,10 @@ class SocketClient {
         
         this.socket.on('turnEnded', (data) => {
             if (this.onTurnEnded) this.onTurnEnded(data);
+        });
+        
+        this.socket.on('extraTurn', (data) => {
+            if (this.onExtraTurn) this.onExtraTurn(data);
         });
         
         this.socket.on('gameOver', (data) => {

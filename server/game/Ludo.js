@@ -35,7 +35,7 @@ class LudoGame {
         });
         
         // Track layout
-        this.startPositions = [0, 13, 26, 39];
+        this.startPositions = [0, 13, 26, 39]; // Red, Yellow, Blue, Green
         this.homeEntries = [50, 11, 24, 37];
         this.safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
     }
@@ -73,14 +73,30 @@ class LudoGame {
     canMoveToken(player, tokenIndex) {
         const token = player.tokens[tokenIndex];
         if (token.finished) return false;
+        const playerIndex = this.players.indexOf(player);
         
         if (token.position === -1) {
-            return this.diceValue === 6;
+            if (this.diceValue !== 6) return false;
+            const dest = this.startPositions[playerIndex];
+            if (this.isBlocked(dest, player.id)) return false;
+            return true;
         }
         
         if (token.homeColumn) {
             const homeColPos = token.position - 52;
             return (homeColPos + this.diceValue) <= 6;
+        }
+        
+        // Token on main track - check all steps for blockade
+        for (let step = 1; step <= this.diceValue; step++) {
+            const checkPos = (token.position + step) % 52;
+            // Can pass through own blockade, cannot pass opponent blockade
+            if (this.isBlocked(checkPos, player.id)) {
+                // If final destination, blocked entirely
+                if (step === this.diceValue) return false;
+                // Passing through a blockade is not allowed
+                return false;
+            }
         }
         
         return true;
@@ -140,8 +156,39 @@ class LudoGame {
         return { type: 'move', from: oldPos, to: newPos, captured };
     }
     
+    // Get count of same-color tokens on a track position (for blockade)
+    getBlockCount(trackPos, excludePlayerId) {
+        let count = 0;
+        this.players.forEach(p => {
+            if (p.id === excludePlayerId) return;
+            p.tokens.forEach(t => {
+                if (!t.homeColumn && !t.finished && t.position === trackPos && t.position >= 0) {
+                    count++;
+                }
+            });
+        });
+        return count;
+    }
+    
+    // Check if a track position is blocked by a 2+ same-color blockade
+    isBlocked(trackPos, movingPlayerId) {
+        if (this.safeSquares.includes(trackPos)) return false;
+        const counts = {};
+        this.players.forEach(p => {
+            if (p.id === movingPlayerId) return;
+            p.tokens.forEach(t => {
+                if (!t.homeColumn && !t.finished && t.position === trackPos && t.position >= 0) {
+                    const key = p.id;
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+        });
+        return Object.values(counts).some(c => c >= 2);
+    }
+    
     checkCapture(player, tokenIndex) {
         const token = player.tokens[tokenIndex];
+        if (this.safeSquares.includes(token.position)) return null;
         const captured = [];
         
         this.players.forEach(opponent => {

@@ -9,7 +9,6 @@ class LudoBoard {
         this.cellSize = 0;
         this.boardSize = 0;
         
-        // Colors
         this.colors = {
             red: '#e74c3c',
             blue: '#3498db',
@@ -20,63 +19,266 @@ class LudoBoard {
             path: '#ffffff'
         };
         
-        // Board layout
-        // 0 = empty, 1 = path, 2 = home base, 3 = home column, 4 = center
         this.layout = this.createLayout();
-        
-        // Safe squares (star positions)
         this.safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+        this.editMode = false;
+        this.selectedCell = null;
         
-        this.resize();
+        this.setupEditor();
+        this.deferredResize();
         window.addEventListener('resize', () => this.resize());
     }
     
-    createLayout() {
-        const grid = Array(15).fill(null).map(() => Array(15).fill(0));
+    setupEditor() {
+        this.canvas.addEventListener('click', (e) => {
+            if (!this.editMode) return;
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            const c = Math.floor(x / this.cellSize);
+            const r = Math.floor(y / this.cellSize);
+            if (r >= 0 && r < this.gridSize && c >= 0 && c < this.gridSize) {
+                this.selectedCell = { r, c };
+                this.draw();
+                this.highlightSelected();
+                const trackPos = this.gridToTrack(r, c);
+                const typeNames = { 0: 'Empty', 1: 'Path', 2: 'Home Base', 3: 'Home Column', 4: 'Center' };
+                const info = `Row ${r}, Col ${c} | Type: ${typeNames[this.layout[r][c]]}${trackPos >= 0 ? ' | Track: ' + trackPos : ''}`;
+                document.getElementById('tile-info').textContent = info;
+                document.getElementById('tile-editor').style.display = 'block';
+                document.getElementById('tile-color').value = this.getCellColor(r, c);
+                document.getElementById('tile-type').value = this.layout[r][c];
+            }
+        });
         
-        // Home bases (corners) — 4x4 each, standard Ludo
-        // Red (top-left) rows 0-3, cols 0-3
-        for (let r = 0; r < 4; r++)
-            for (let c = 0; c < 4; c++) grid[r][c] = 2;
+        document.getElementById('tile-color').addEventListener('input', () => {
+            if (!this.selectedCell) return;
+            this.applyEdit();
+        });
         
-        // Yellow (top-right) rows 0-3, cols 11-14
-        for (let r = 0; r < 4; r++)
-            for (let c = 11; c < 15; c++) grid[r][c] = 2;
+        document.getElementById('tile-type').addEventListener('change', () => {
+            if (!this.selectedCell) return;
+            this.applyEdit();
+        });
         
-        // Blue (bottom-right) rows 11-14, cols 11-14
-        for (let r = 11; r < 15; r++)
-            for (let c = 11; c < 15; c++) grid[r][c] = 2;
-        
-        // Green (bottom-left) rows 11-14, cols 0-3
-        for (let r = 11; r < 15; r++)
-            for (let c = 0; c < 4; c++) grid[r][c] = 2;
-        
-        // Main path (cross shape)
-        for (let c = 6; c < 9; c++)
-            for (let r = 0; r < 15; r++)
-                if (r < 6 || r > 8) grid[r][c] = 1;
-        
-        for (let r = 6; r < 9; r++)
-            for (let c = 0; c < 15; c++)
-                if (c < 6 || c > 8) grid[r][c] = 1;
-        
-        // Center (3x3)
-        for (let r = 6; r < 9; r++)
-            for (let c = 6; c < 9; c++) grid[r][c] = 4;
-        
-        // Home columns (colored paths leading to center)
-        // Red home column (vertical, top → center)
-        for (let r = 1; r < 6; r++) grid[r][7] = 3;
-        // Yellow home column (horizontal, right → center)
-        for (let c = 9; c < 14; c++) grid[7][c] = 3;
-        // Blue home column (vertical, bottom → center)
-        for (let r = 9; r < 14; r++) grid[r][7] = 3;
-        // Green home column (horizontal, left → center)
-        for (let c = 1; c < 6; c++) grid[7][c] = 3;
-        
-        return grid;
+        document.getElementById('save-board-btn').addEventListener('click', () => {
+            this.saveLayout();
+        });
     }
     
+    saveLayout() {
+        var layout = [];
+        for (var r = 0; r < this.gridSize; r++) {
+            layout[r] = [];
+            for (var c = 0; c < this.gridSize; c++) {
+                layout[r][c] = this.layout[r][c];
+            }
+        }
+        fetch('/save-board', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ layout: layout }) })
+            .then(function(r) { return r.json(); })
+            .then(function(data) { alert(data.success ? 'Saved! Restart server.' : 'Save failed: ' + data.error); });
+    }
+    
+    getCellColor(r, c) {
+        const type = this.layout[r][c];
+        switch (type) {
+            case 2: return this.getHomeBaseColor(r, c);
+            case 3: return this.getHomeColumnColor(r, c);
+            case 1: return this.colors.path;
+            case 0: return this.colors.dark;
+            default: return '#ffffff';
+        }
+    }
+    
+    applyEdit() {
+        const { r, c } = this.selectedCell;
+        this.layout[r][c] = parseInt(document.getElementById('tile-type').value);
+        if (this.layout[r][c] === 1) {
+            this.colors.path = document.getElementById('tile-color').value;
+        }
+        this.draw();
+        this.highlightSelected();
+    }
+    
+    highlightSelected() {
+        if (!this.selectedCell) return;
+        const { r, c } = this.selectedCell;
+        const ctx = this.ctx;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize);
+    }
+    
+    toggleEditMode() {
+        this.editMode = !this.editMode;
+        this.canvas.style.cursor = this.editMode ? 'crosshair' : 'default';
+        this.canvas.style.pointerEvents = this.editMode ? 'auto' : 'none';
+        if (!this.editMode) {
+            document.getElementById('tile-editor').style.display = 'none';
+            this.selectedCell = null;
+        }
+        this.draw();
+    }
+    
+    deferredResize() {
+        if (this.canvas.parentElement.clientWidth > 0) {
+            this.resize();
+            return;
+        }
+        requestAnimationFrame(() => this.deferredResize());
+    }
+    
+        createLayout() {
+        var grid = Array(15).fill(null).map(function() { return Array(15).fill(0); });
+        grid[0][0] = 2;
+        grid[0][1] = 2;
+        grid[0][2] = 2;
+        grid[0][3] = 2;
+        grid[0][6] = 1;
+        grid[0][7] = 1;
+        grid[0][8] = 1;
+        grid[0][11] = 2;
+        grid[0][12] = 2;
+        grid[0][13] = 2;
+        grid[0][14] = 2;
+        grid[1][0] = 2;
+        grid[1][1] = 2;
+        grid[1][2] = 2;
+        grid[1][3] = 2;
+        grid[1][6] = 1;
+        grid[1][7] = 3;
+        grid[1][8] = 1;
+        grid[1][11] = 2;
+        grid[1][12] = 2;
+        grid[1][13] = 2;
+        grid[1][14] = 2;
+        grid[2][0] = 2;
+        grid[2][1] = 2;
+        grid[2][2] = 2;
+        grid[2][3] = 2;
+        grid[2][6] = 1;
+        grid[2][7] = 3;
+        grid[2][8] = 1;
+        grid[2][11] = 2;
+        grid[2][12] = 2;
+        grid[2][13] = 2;
+        grid[2][14] = 2;
+        grid[3][0] = 2;
+        grid[3][1] = 2;
+        grid[3][2] = 2;
+        grid[3][3] = 2;
+        grid[3][6] = 1;
+        grid[3][7] = 3;
+        grid[3][8] = 1;
+        grid[3][11] = 2;
+        grid[3][12] = 2;
+        grid[3][13] = 2;
+        grid[3][14] = 2;
+        grid[4][6] = 1;
+        grid[4][7] = 3;
+        grid[4][8] = 1;
+        grid[5][6] = 1;
+        grid[5][7] = 3;
+        grid[5][8] = 1;
+        grid[6][0] = 1;
+        grid[6][1] = 1;
+        grid[6][2] = 1;
+        grid[6][3] = 1;
+        grid[6][4] = 1;
+        grid[6][5] = 1;
+        grid[6][6] = 4;
+        grid[6][7] = 4;
+        grid[6][8] = 4;
+        grid[6][9] = 1;
+        grid[6][10] = 1;
+        grid[6][11] = 1;
+        grid[6][12] = 1;
+        grid[6][13] = 1;
+        grid[6][14] = 1;
+        grid[7][0] = 1;
+        grid[7][1] = 3;
+        grid[7][2] = 3;
+        grid[7][3] = 3;
+        grid[7][4] = 3;
+        grid[7][5] = 3;
+        grid[7][6] = 4;
+        grid[7][7] = 4;
+        grid[7][8] = 4;
+        grid[7][9] = 3;
+        grid[7][10] = 3;
+        grid[7][11] = 3;
+        grid[7][12] = 3;
+        grid[7][13] = 3;
+        grid[7][14] = 1;
+        grid[8][0] = 1;
+        grid[8][1] = 1;
+        grid[8][2] = 1;
+        grid[8][3] = 1;
+        grid[8][4] = 1;
+        grid[8][5] = 1;
+        grid[8][6] = 4;
+        grid[8][7] = 4;
+        grid[8][8] = 4;
+        grid[8][9] = 1;
+        grid[8][10] = 1;
+        grid[8][11] = 1;
+        grid[8][12] = 1;
+        grid[8][13] = 1;
+        grid[8][14] = 1;
+        grid[9][6] = 1;
+        grid[9][7] = 3;
+        grid[9][8] = 1;
+        grid[10][6] = 1;
+        grid[10][7] = 3;
+        grid[10][8] = 1;
+        grid[11][0] = 2;
+        grid[11][1] = 2;
+        grid[11][2] = 2;
+        grid[11][3] = 2;
+        grid[11][6] = 1;
+        grid[11][7] = 3;
+        grid[11][8] = 1;
+        grid[11][11] = 2;
+        grid[11][12] = 2;
+        grid[11][13] = 2;
+        grid[11][14] = 2;
+        grid[12][0] = 2;
+        grid[12][1] = 2;
+        grid[12][2] = 2;
+        grid[12][3] = 2;
+        grid[12][6] = 1;
+        grid[12][7] = 3;
+        grid[12][8] = 1;
+        grid[12][11] = 2;
+        grid[12][12] = 2;
+        grid[12][13] = 2;
+        grid[12][14] = 2;
+        grid[13][0] = 2;
+        grid[13][1] = 2;
+        grid[13][2] = 2;
+        grid[13][3] = 2;
+        grid[13][6] = 1;
+        grid[13][7] = 3;
+        grid[13][8] = 1;
+        grid[13][11] = 2;
+        grid[13][12] = 2;
+        grid[13][13] = 2;
+        grid[13][14] = 2;
+        grid[14][0] = 2;
+        grid[14][1] = 2;
+        grid[14][2] = 2;
+        grid[14][3] = 2;
+        grid[14][6] = 1;
+        grid[14][7] = 1;
+        grid[14][8] = 1;
+        grid[14][11] = 2;
+        grid[14][12] = 2;
+        grid[14][13] = 2;
+        grid[14][14] = 2;
+        return grid;
+    }
     resize() {
         const wrapper = this.canvas.parentElement;
         const width = wrapper.clientWidth || wrapper.offsetWidth;
@@ -92,6 +294,7 @@ class LudoBoard {
         this.canvas.style.height = size + 'px';
         
         this.draw();
+        if (this.onResize) this.onResize();
     }
     
     draw() {
@@ -139,18 +342,30 @@ class LudoBoard {
     }
     
     getHomeBaseColor(r, c) {
-        if (r < 4 && c < 4) return this.colors.red;         // Top-left
-        if (r < 4 && c > 10) return this.colors.yellow;      // Top-right
-        if (r > 10 && c > 10) return this.colors.blue;       // Bottom-right
-        if (r > 10 && c < 4) return this.colors.green;       // Bottom-left
+        if (r < 4 && c < 4) {           // Top-left (Red)
+            if (r >= 1 && r <= 2 && c >= 1 && c <= 2) return this.colors.white;
+            return this.colors.red;
+        }
+        if (r < 4 && c > 10) {          // Top-right (Yellow)
+            if (r >= 1 && r <= 2 && c >= 12 && c <= 13) return this.colors.white;
+            return this.colors.yellow;
+        }
+        if (r > 10 && c > 10) {         // Bottom-right (Blue)
+            if (r >= 12 && r <= 13 && c >= 12 && c <= 13) return this.colors.white;
+            return this.colors.blue;
+        }
+        if (r > 10 && c < 4) {          // Bottom-left (Green)
+            if (r >= 12 && r <= 13 && c >= 1 && c <= 2) return this.colors.white;
+            return this.colors.green;
+        }
         return this.colors.dark;
     }
     
     getHomeColumnColor(r, c) {
-        if (c === 7 && r >= 1 && r <= 5) return this.colors.red;      // Top → center
-        if (r === 7 && c >= 9 && c <= 13) return this.colors.yellow;   // Right → center
-        if (c === 7 && r >= 9 && r <= 13) return this.colors.blue;     // Bottom → center
-        if (r === 7 && c >= 1 && c <= 5) return this.colors.green;     // Left → center
+        if (c === 7 && r >= 1 && r <= 5) return this.colors.red;      // Top → center (stops before row 6)
+        if (r === 7 && c >= 9 && c <= 13) return this.colors.yellow;   // Right → center (stops before col 8)
+        if (c === 7 && r >= 9 && r <= 13) return this.colors.blue;     // Bottom → center (stops before row 8)
+        if (r === 7 && c >= 1 && c <= 5) return this.colors.green;     // Left → center (stops before col 6)
         return this.colors.white;
     }
     
@@ -248,46 +463,46 @@ class LudoBoard {
     drawCenter() {
         const ctx = this.ctx;
         const cs = this.cellSize;
-        const ox = 7 * cs;
-        const oy = 7 * cs;
+        // Center is the 3x3 area at rows 6-8, cols 6-8
+        const ox = 6 * cs;
+        const oy = 6 * cs;
         const sz = 3 * cs;
+        const cx = ox + sz / 2;
+        const cy = oy + sz / 2;
         
-        // Red triangle (top-left quadrant of center)
+        // Red triangle (top-left quadrant)
         ctx.fillStyle = this.colors.red;
         ctx.beginPath();
         ctx.moveTo(ox, oy);
-        ctx.lineTo(ox + sz/2, oy);
-        ctx.lineTo(ox, oy + sz/2);
+        ctx.lineTo(ox + sz, oy);
+        ctx.lineTo(cx, cy);
         ctx.closePath();
         ctx.fill();
         
-        // Yellow triangle (top-right quadrant of center)
+        // Yellow triangle (top-right quadrant)
         ctx.fillStyle = this.colors.yellow;
         ctx.beginPath();
-        ctx.moveTo(ox + sz/2, oy);
-        ctx.lineTo(ox + sz, oy);
-        ctx.lineTo(ox + sz, oy + sz/2);
-        ctx.lineTo(ox + sz/2, oy + sz/2);
+        ctx.moveTo(ox + sz, oy);
+        ctx.lineTo(ox + sz, oy + sz);
+        ctx.lineTo(cx, cy);
         ctx.closePath();
         ctx.fill();
         
-        // Blue triangle (bottom-right quadrant of center)
+        // Blue triangle (bottom-right quadrant)
         ctx.fillStyle = this.colors.blue;
         ctx.beginPath();
-        ctx.moveTo(ox + sz/2, oy + sz/2);
-        ctx.lineTo(ox + sz, oy + sz/2);
-        ctx.lineTo(ox + sz/2, oy + sz);
+        ctx.moveTo(ox + sz, oy + sz);
         ctx.lineTo(ox, oy + sz);
+        ctx.lineTo(cx, cy);
         ctx.closePath();
         ctx.fill();
         
-        // Green triangle (bottom-left quadrant of center)
+        // Green triangle (bottom-left quadrant)
         ctx.fillStyle = this.colors.green;
         ctx.beginPath();
-        ctx.moveTo(ox, oy + sz/2);
-        ctx.lineTo(ox + sz/2, oy + sz/2);
-        ctx.lineTo(ox + sz/2, oy + sz);
-        ctx.lineTo(ox, oy + sz);
+        ctx.moveTo(ox, oy + sz);
+        ctx.lineTo(ox, oy);
+        ctx.lineTo(cx, cy);
         ctx.closePath();
         ctx.fill();
     }
@@ -318,21 +533,21 @@ class LudoBoard {
         ctx.font = `bold ${cs * 0.45}px Arial`;
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         
-        // Red HOME (top path, near center)
-        ctx.fillText('HOME', 7 * cs, 5.5 * cs);
+        // Red HOME (col 7, row 6)
+        ctx.fillText('HOME', 7.5 * cs, 6.5 * cs);
         
-        // Yellow HOME (right path, near center)
+        // Yellow HOME (row 7, col 8)
         ctx.save();
-        ctx.translate(9.5 * cs, 7 * cs);
+        ctx.translate(8.5 * cs, 7.5 * cs);
         ctx.fillText('HOME', 0, 0);
         ctx.restore();
         
-        // Blue HOME (bottom path, near center)
-        ctx.fillText('HOME', 7 * cs, 9.5 * cs);
+        // Blue HOME (col 7, row 8)
+        ctx.fillText('HOME', 7.5 * cs, 8.5 * cs);
         
-        // Green HOME (left path, near center)
+        // Green HOME (row 7, col 6)
         ctx.save();
-        ctx.translate(5.5 * cs, 7 * cs);
+        ctx.translate(6.5 * cs, 7.5 * cs);
         ctx.fillText('HOME', 0, 0);
         ctx.restore();
         
@@ -340,21 +555,21 @@ class LudoBoard {
         ctx.font = `bold ${cs * 0.4}px Arial`;
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
         
-        // Red BACK (top of home column)
-        ctx.fillText('BACK', 7 * cs, 1.5 * cs);
+        // Red BACK (top of home column at row 1)
+        ctx.fillText('BACK', 7.5 * cs, 1.5 * cs);
         
-        // Yellow BACK (right of home column)
+        // Yellow BACK (right of home column at col 13)
         ctx.save();
-        ctx.translate(13.5 * cs, 7 * cs);
+        ctx.translate(13.5 * cs, 7.5 * cs);
         ctx.fillText('BACK', 0, 0);
         ctx.restore();
         
-        // Blue BACK (bottom of home column)
-        ctx.fillText('BACK', 7 * cs, 13.5 * cs);
+        // Blue BACK (bottom of home column at row 13)
+        ctx.fillText('BACK', 7.5 * cs, 13.5 * cs);
         
-        // Green BACK (left of home column)
+        // Green BACK (left of home column at col 1)
         ctx.save();
-        ctx.translate(1.5 * cs, 7 * cs);
+        ctx.translate(1.5 * cs, 7.5 * cs);
         ctx.fillText('BACK', 0, 0);
         ctx.restore();
     }
@@ -439,10 +654,10 @@ class LudoBoard {
         // playerIndex: 0=Red(TL), 1=Yellow(TR), 2=Blue(BR), 3=Green(BL)
         // 4x4 home bases with 2x2 token arrangement
         const bases = [
-            [{r: 0, c: 0}, {r: 0, c: 2}, {r: 2, c: 0}, {r: 2, c: 2}],     // Red (rows 0-3, cols 0-3)
-            [{r: 0, c: 11}, {r: 0, c: 13}, {r: 2, c: 11}, {r: 2, c: 13}],  // Yellow (rows 0-3, cols 11-14)
-            [{r: 11, c: 11}, {r: 11, c: 13}, {r: 13, c: 11}, {r: 13, c: 13}], // Blue (rows 11-14, cols 11-14)
-            [{r: 11, c: 0}, {r: 11, c: 2}, {r: 13, c: 0}, {r: 13, c: 2}]   // Green (rows 11-14, cols 0-3)
+            [{r: 1, c: 1}, {r: 1, c: 2}, {r: 2, c: 1}, {r: 2, c: 2}],          // Red (inner 2x2 TL)
+            [{r: 1, c: 12}, {r: 1, c: 13}, {r: 2, c: 12}, {r: 2, c: 13}],      // Yellow (inner 2x2 TR)
+            [{r: 12, c: 12}, {r: 12, c: 13}, {r: 13, c: 12}, {r: 13, c: 13}],  // Blue (inner 2x2 BR)
+            [{r: 12, c: 1}, {r: 12, c: 2}, {r: 13, c: 1}, {r: 13, c: 2}]       // Green (inner 2x2 BL)
         ];
         
         return bases[playerIndex][tokenIndex];
@@ -450,11 +665,13 @@ class LudoBoard {
     
     getHomeColumnPosition(playerIndex, position) {
         // playerIndex: 0=Red, 1=Yellow, 2=Blue, 3=Green
+        // position: 0 = first square after entering, 5 = last square before center
+        // Home columns end ONE cell before center area (rows 6-8, cols 6-8)
         const columns = [
-            [{r: 5, c: 7}, {r: 4, c: 7}, {r: 3, c: 7}, {r: 2, c: 7}, {r: 1, c: 7}, {r: 0, c: 7}],  // Red (top → center)
-            [{r: 7, c: 9}, {r: 7, c: 10}, {r: 7, c: 11}, {r: 7, c: 12}, {r: 7, c: 13}, {r: 7, c: 14}], // Yellow (right → center)
-            [{r: 9, c: 7}, {r: 10, c: 7}, {r: 11, c: 7}, {r: 12, c: 7}, {r: 13, c: 7}, {r: 14, c: 7}], // Blue (bottom → center)
-            [{r: 7, c: 5}, {r: 7, c: 4}, {r: 7, c: 3}, {r: 7, c: 2}, {r: 7, c: 1}, {r: 7, c: 0}]   // Green (left → center)
+            [{r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 5, c: 7}],  // Red (top → center, last pos overlaps at row 5)
+            [{r: 7, c: 13}, {r: 7, c: 12}, {r: 7, c: 11}, {r: 7, c: 10}, {r: 7, c: 9}, {r: 7, c: 9}], // Yellow (right → center, last pos overlaps at col 9)
+            [{r: 13, c: 7}, {r: 12, c: 7}, {r: 11, c: 7}, {r: 10, c: 7}, {r: 9, c: 7}, {r: 9, c: 7}], // Blue (bottom → center, last pos overlaps at row 9)
+            [{r: 7, c: 1}, {r: 7, c: 2}, {r: 7, c: 3}, {r: 7, c: 4}, {r: 7, c: 5}, {r: 7, c: 5}]   // Green (left → center, last pos overlaps at col 5)
         ];
         
         return columns[playerIndex][position];

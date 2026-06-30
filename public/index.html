@@ -55,6 +55,22 @@
                 <div id="board-grid" class="board-grid"></div>
             </div>
             
+            <!-- Tile Editor -->
+            <div id="tile-editor" class="tile-editor" style="display:none">
+                <div id="tile-info"></div>
+                <label>Color: <input type="color" id="tile-color" value="#ffffff"></label>
+                <label>Type:
+                    <select id="tile-type">
+                        <option value="1">Path</option>
+                        <option value="0">Empty</option>
+                        <option value="2">Home Base</option>
+                        <option value="3">Home Column</option>
+                        <option value="4">Center</option>
+                    </select>
+                </label>
+                <button id="save-board-btn" class="primary-btn" style="width:auto;padding:6px 14px;font-size:0.8rem">Save to File</button>
+            </div>
+            
             <!-- Dice Area -->
             <div class="dice-area">
                 <div id="dice" class="dice" title="Click to roll">
@@ -97,7 +113,7 @@
     <script src="js/socket-client.js?v=2"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/dice.js?v=2"></script>
-    <script src="js/board-v2.js"></script>
+    <script src="js/board.js"></script>
     <script src="js/game.js?v=2"></script>
     <script src="js/main.js?v=2"></script>
 </body>

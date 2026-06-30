@@ -43,7 +43,7 @@ class LudoGame {
         
         // Track layout (standard Ludo)
         // Each player has a starting position on the main track
-        this.startPositions = [0, 13, 26, 39]; // Red, Blue, Green, Yellow
+        this.startPositions = [0, 13, 26, 39]; // Red, Yellow, Blue, Green
         
         // Home column entry points (when token reaches here, enters home column)
         this.homeEntries = [50, 11, 24, 37]; // Before each start position
@@ -63,14 +63,9 @@ class LudoGame {
         return this.players[this.currentPlayer];
     }
     
-    // Check if player can roll
     canRoll() {
         if (this.gameOver) return false;
-        
-        const player = this.getCurrentPlayer();
-        
-        // Check if player has any movable tokens
-        return this.getSelectableTokens(player).length > 0 || this.diceValue === 0;
+        return this.diceValue === 0;
     }
     
     // Get selectable tokens for current player
@@ -86,17 +81,36 @@ class LudoGame {
         return selectable;
     }
     
+    // Check if a track position is blocked by a 2+ same-color blockade
+    isBlocked(trackPos, movingPlayerId) {
+        if (this.safeSquares.includes(trackPos)) return false;
+        const counts = {};
+        this.players.forEach(p => {
+            if (p.id === movingPlayerId) return;
+            p.tokens.forEach(t => {
+                if (!t.homeColumn && !t.finished && t.position === trackPos && t.position >= 0) {
+                    counts[p.id] = (counts[p.id] || 0) + 1;
+                }
+            });
+        });
+        return Object.values(counts).some(c => c >= 2);
+    }
+    
     // Check if a token can move
     canMoveToken(player, tokenIndex) {
         const token = player.tokens[tokenIndex];
         
         // Token finished
         if (token.finished) return false;
+        const playerIndex = this.players.indexOf(player);
         
         // Token in home base
         if (token.position === -1) {
             // Can only enter if dice is 6
-            return this.diceValue === 6;
+            if (this.diceValue !== 6) return false;
+            const dest = this.startPositions[playerIndex];
+            if (this.isBlocked(dest, player.id)) return false;
+            return true;
         }
         
         // Token in home column
@@ -110,17 +124,10 @@ class LudoGame {
             return true;
         }
         
-        // Token on main track
-        const newPos = (token.position + this.diceValue) % 52;
-        const playerIndex = this.players.indexOf(player);
-        const homeEntry = this.homeEntries[playerIndex];
-        
-        // Check if entering home column
-        if (token.position <= homeEntry && newPos > homeEntry) {
-            // Entering home column
-            const homeColPos = this.diceValue - (homeEntry - token.position) - 1;
-            if (homeColPos > 6) return false;
-            return true;
+        // Token on main track - check all steps for blockade
+        for (let step = 1; step <= this.diceValue; step++) {
+            const checkPos = (token.position + step) % 52;
+            if (this.isBlocked(checkPos, player.id)) return false;
         }
         
         return true;
@@ -193,6 +200,7 @@ class LudoGame {
     // Check if landing on opponent's token
     checkCapture(player, tokenIndex) {
         const token = player.tokens[tokenIndex];
+        if (this.safeSquares.includes(token.position)) return null;
         const captured = [];
         
         // Check each opponent

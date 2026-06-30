@@ -113,6 +113,7 @@ class LudoUI {
                              data.playerName === this.socketClient.player.name;
             if (isMyTurn) {
                 setTimeout(() => {
+                    this.renderBoard();
                     const player = window.game.getCurrentPlayer();
                     const selectable = window.game.getSelectableTokens(player);
                     if (selectable.length > 0) {
@@ -148,6 +149,13 @@ class LudoUI {
             this.updatePlayerBar();
             this.updateStatus();
             this.renderBoard();
+        };
+        
+        this.socketClient.onExtraTurn = (data) => {
+            this.updateGameState(data.state);
+            this.updateStatus();
+            this.renderBoard();
+            this.addSystemChatMessage('Extra turn! Rolled a 6');
         };
         
         this.socketClient.onGameOver = (data) => {
@@ -246,6 +254,7 @@ class LudoUI {
         
         // Create board
         window.board = new LudoBoard('board-canvas');
+        window.board.onResize = () => this.renderBoard();
         
         // Create dice
         window.dice = new LudoDice();
@@ -372,20 +381,43 @@ class LudoUI {
         // Clear previous tokens
         document.querySelectorAll('.token').forEach(t => t.remove());
         
-        // Draw all tokens as DOM elements
+        // Group tokens by tile to handle stacking
+        const tileMap = new Map();
+        const tokenList = [];
         window.game.players.forEach((player, playerIndex) => {
             player.tokens.forEach((token, tokenIndex) => {
-                if (!token.finished) {
-                    this.createTokenElement(playerIndex, tokenIndex, player.color);
+                if (token.finished) return;
+                const pos = window.game.getTokenPosition(playerIndex, tokenIndex);
+                let key = null;
+                if (pos.type === 'track') {
+                    const g = window.board.trackToGrid(pos.position);
+                    key = `t-${g.r}-${g.c}`;
+                } else if (pos.type === 'homeColumn') {
+                    const g = window.board.getHomeColumnPosition(pos.base, pos.position);
+                    key = `t-${g.r}-${g.c}`;
+                } else if (pos.type === 'home') {
+                    const g = window.board.getHomeBasePosition(pos.base, pos.index);
+                    key = `t-${g.r}-${g.c}`;
                 }
+                if (!key) return;
+                tokenList.push({ playerIndex, tokenIndex, color: player.color, key });
             });
+        });
+        
+        const counts = {};
+        tokenList.forEach(t => { counts[t.key] = (counts[t.key] || 0) + 1; });
+        
+        const placed = {};
+        tokenList.forEach(t => {
+            placed[t.key] = (placed[t.key] || 0) + 1;
+            this.createTokenElement(t.playerIndex, t.tokenIndex, t.color, placed[t.key], counts[t.key]);
         });
         
         // Redraw board background
         window.board?.draw();
     }
     
-    createTokenElement(playerIndex, tokenIndex, color) {
+    createTokenElement(playerIndex, tokenIndex, color, stackIndex, stackCount) {
         const token = window.game.players[playerIndex].tokens[tokenIndex];
         const pos = window.game.getTokenPosition(playerIndex, tokenIndex);
         
@@ -409,15 +441,30 @@ class LudoUI {
             return;
         }
         
+        const cs = window.board.cellSize;
+        let size = cs * 0.7;
+        let offX = cs * 0.15;
+        let offY = cs * 0.15;
+        
+        // Stacked tokens: shrink + offset each so all visible
+        if (stackCount > 1) {
+            size = cs * 0.5;
+            const cols = stackCount <= 4 ? 2 : 3;
+            const col = (stackIndex - 1) % cols;
+            const row = Math.floor((stackIndex - 1) / cols);
+            offX = cs * 0.08 + col * (cs * 0.44);
+            offY = cs * 0.08 + row * (cs * 0.44);
+        }
+        
         const tokenElement = document.createElement('div');
         tokenElement.className = `token ${color}`;
         tokenElement.id = `token-${playerIndex}-${tokenIndex}`;
         tokenElement.dataset.playerIndex = playerIndex;
         tokenElement.dataset.tokenIndex = tokenIndex;
-        tokenElement.style.left = `${x + window.board.cellSize * 0.15}px`;
-        tokenElement.style.top = `${y + window.board.cellSize * 0.15}px`;
-        tokenElement.style.width = `${window.board.cellSize * 0.7}px`;
-        tokenElement.style.height = `${window.board.cellSize * 0.7}px`;
+        tokenElement.style.left = `${x + offX}px`;
+        tokenElement.style.top = `${y + offY}px`;
+        tokenElement.style.width = `${size}px`;
+        tokenElement.style.height = `${size}px`;
         
         // Click handler for human players
         tokenElement.addEventListener('click', () => {

@@ -4,7 +4,7 @@ class Bot {
     constructor(game, playerId) {
         this.game = game;
         this.playerId = playerId;
-        this.thinkTime = 1500; // ms delay before bot acts
+        this.thinkTime = 800; // ms delay before bot acts
     }
     
     async takeTurn(io, roomCode) {
@@ -78,11 +78,20 @@ class Bot {
         
         // End turn
         await this.delay(300);
+        const hadExtraTurn = this.game.diceValue === 6;
         this.game.endTurn();
-        io.to(roomCode).emit('turnEnded', {
-            nextPlayer: this.game.currentPlayer,
-            state: this.game.getState()
-        });
+        
+        if (hadExtraTurn) {
+            io.to(roomCode).emit('extraTurn', {
+                playerId: this.playerId,
+                state: this.game.getState()
+            });
+        } else {
+            io.to(roomCode).emit('turnEnded', {
+                nextPlayer: this.game.currentPlayer,
+                state: this.game.getState()
+            });
+        }
     }
     
     pickBestToken(player, selectable) {

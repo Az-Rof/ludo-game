@@ -24,6 +24,55 @@ const MIME_TYPES = {
 // Create HTTP server
 const server = http.createServer((req, res) => {
     const urlPath = req.url.split('?')[0]; // Strip query params
+    
+    // POST /save-board — persist board layout to file
+    if (req.method === 'POST' && urlPath === '/save-board') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const { layout } = JSON.parse(body);
+                if (!layout || !Array.isArray(layout)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invalid layout' }));
+                    return;
+                }
+                // Generate createLayout code
+                let code = '    createLayout() {\n        var grid = Array(15).fill(null).map(function() { return Array(15).fill(0); });\n';
+                for (let r = 0; r < 15; r++) {
+                    for (let c = 0; c < 15; c++) {
+                        if (layout[r] && layout[r][c] !== 0) {
+                            code += '        grid[' + r + '][' + c + '] = ' + layout[r][c] + ';\n';
+                        }
+                    }
+                }
+                code += '        return grid;\n    }';
+                
+                const boardPath = path.join(__dirname, 'public', 'js', 'board.js');
+                const content = fs.readFileSync(boardPath, 'utf8');
+                const startMarker = 'createLayout() {';
+                const endMarker = '\n    resize() {';
+                const startIdx = content.indexOf(startMarker);
+                const endIdx = content.indexOf(endMarker);
+                
+                if (startIdx === -1 || endIdx === -1) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Marker not found' }));
+                    return;
+                }
+                
+                const newContent = content.slice(0, startIdx) + code + content.slice(endIdx);
+                fs.writeFileSync(boardPath, newContent);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
+        return;
+    }
+    
     let filePath = path.join(PUBLIC_DIR, urlPath === '/' ? 'index.html' : urlPath);
     
     // Security: prevent directory traversal
@@ -46,7 +95,12 @@ const server = http.createServer((req, res) => {
                 res.end('Server Error');
             }
         } else {
-            res.writeHead(200, { 'Content-Type': contentType });
+            res.writeHead(200, { 
+                'Content-Type': contentType,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            });
             res.end(content);
         }
     });
@@ -270,11 +324,11 @@ io.on('connection', (socket) => {
                     nextPlayer: game.currentPlayer,
                     state: game.getState()
                 });
-                
-                // If next player is bot, trigger bot turn
                 startGameLoop(roomCode);
                 return;
             }
+            socket.emit('moveResult', { success: false, error: 'Selectable tokens exist' });
+            return;
         }
         
         if (!game.canMoveToken(player, data.tokenIndex)) {
@@ -310,13 +364,21 @@ io.on('connection', (socket) => {
         
         // End turn after delay
         setTimeout(() => {
+            const hadExtraTurn = game.diceValue === 6;
             game.endTurn();
-            io.to(roomCode).emit('turnEnded', {
-                nextPlayer: game.currentPlayer,
-                state: game.getState()
-            });
             
-            // If next player is bot, trigger bot turn
+            if (hadExtraTurn) {
+                io.to(roomCode).emit('extraTurn', {
+                    playerId: player.id,
+                    state: game.getState()
+                });
+            } else {
+                io.to(roomCode).emit('turnEnded', {
+                    nextPlayer: game.currentPlayer,
+                    state: game.getState()
+                });
+            }
+            
             startGameLoop(roomCode);
         }, 500);
     });
