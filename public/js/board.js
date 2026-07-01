@@ -14,9 +14,9 @@ class LudoBoard {
             blue: '#3498db',
             green: '#2ecc71',
             yellow: '#f1c40f',
-            white: '#ecf0f1',
-            dark: '#1a1a2e',
-            path: '#ffffff'
+            white: '#faf8f5',
+            dark: '#ede6d8',
+            path: '#fff'
         };
         
         this.layout = this.createLayout();
@@ -25,8 +25,16 @@ class LudoBoard {
         this.selectedCell = null;
         
         this.setupEditor();
+        this.updateThemeColors();
         this.deferredResize();
         window.addEventListener('resize', () => this.resize());
+    }
+
+    updateThemeColors() {
+        const style = getComputedStyle(document.documentElement);
+        this.colors.dark = style.getPropertyValue('--canvas-bg').trim() || '#ede6d8';
+        this.colors.path = style.getPropertyValue('--dice-bg').trim() || '#fff';
+        this.colors.white = style.getPropertyValue('--surface-alt').trim() || '#faf8f5';
     }
     
     setupEditor() {

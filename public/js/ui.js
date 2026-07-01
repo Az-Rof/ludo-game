@@ -67,6 +67,7 @@ class LudoUI {
     
     setupSocketCallbacks() {
         this.socketClient.onRoomCreated = (data) => {
+            this.clearLoading(this.createRoomBtn);
             if (data.success) {
                 this.showWaitingRoom(data.code, [data.player]);
             } else {
@@ -75,6 +76,7 @@ class LudoUI {
         };
         
         this.socketClient.onRoomJoined = (data) => {
+            this.clearLoading(this.joinRoomBtn);
             if (data.success) {
                 this.showWaitingRoom(data.code, data.players);
             } else {
@@ -83,6 +85,7 @@ class LudoUI {
         };
         
         this.socketClient.onPlayerJoined = (data) => {
+            this.clearLoading(this.addBotBtn);
             this.updateWaitingPlayers(data.players);
             this.addSystemChatMessage(`${data.player.name} joined the room`);
         };
@@ -93,6 +96,7 @@ class LudoUI {
         };
         
         this.socketClient.onGameStarted = (data) => {
+            this.clearLoading(this.startGameBtn);
             if (data.success) {
                 this.initMultiplayerGame(data);
             }
@@ -179,7 +183,22 @@ class LudoUI {
         });
         this.screens[screenName].classList.add('active');
     }
-    
+
+    setLoading(btn) {
+        if (!btn) return;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn._origText = btn.textContent;
+        btn.textContent = '···';
+    }
+
+    clearLoading(btn) {
+        if (!btn) return;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        if (btn._origText) btn.textContent = btn._origText;
+    }
+
     showLobbyError(error) {
         // Show error message
         alert(error);
@@ -187,6 +206,7 @@ class LudoUI {
     
     createRoom() {
         this.username = this.usernameInput.value.trim() || 'Player';
+        this.setLoading(this.createRoomBtn);
         this.socketClient.createRoom(this.username);
     }
     
@@ -199,6 +219,7 @@ class LudoUI {
             return;
         }
         
+        this.setLoading(this.joinRoomBtn);
         this.socketClient.joinRoom(roomCode, this.username);
     }
     
@@ -233,10 +254,12 @@ class LudoUI {
     
     addBot() {
         const botNumber = this.waitingPlayers.children.length + 1;
+        this.setLoading(this.addBotBtn);
         this.socketClient.addBot(`Bot ${botNumber}`);
     }
     
     startGame() {
+        this.setLoading(this.startGameBtn);
         this.socketClient.startGame();
     }
     
@@ -257,7 +280,7 @@ class LudoUI {
         window.board.onResize = () => this.renderBoard();
         
         // Create dice
-        window.dice = new LudoDice();
+        window.dice = new LudoDice3D();
         window.dice.setMultiplayer(true);
         
         // Setup player bar
@@ -504,6 +527,7 @@ class LudoUI {
     }
     
     addChatMessage(playerName, playerColor, message) {
+        this.dismissChatEmpty();
         const el = document.createElement('div');
         el.className = 'chat-message';
         
@@ -524,11 +548,17 @@ class LudoUI {
     }
     
     addSystemChatMessage(message) {
+        this.dismissChatEmpty();
         const el = document.createElement('div');
         el.className = 'chat-message system';
         el.textContent = message;
         this.chatMessages.appendChild(el);
         
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    dismissChatEmpty() {
+        const empty = document.getElementById('chat-empty');
+        if (empty) empty.style.display = 'none';
     }
 }

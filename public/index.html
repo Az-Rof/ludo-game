@@ -3,12 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ludo Game</title>
+    <meta name="theme-color" content="#f7f3eb">
+    <meta name="description" content="Play Ludo online with friends — real-time multiplayer board game">
+    <title>Ludo Game — Play Online</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/board.css">
     <link rel="stylesheet" href="css/chat.css">
 </head>
 <body>
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle dark/light mode">🌙</button>
+
     <!-- Lobby Screen -->
     <div id="lobby" class="screen active">
         <div class="lobby-container">
@@ -37,7 +46,7 @@
             <div id="waiting-players" class="waiting-players"></div>
             <div class="waiting-actions">
                 <button id="add-bot-btn" class="secondary-btn">+ ADD BOT</button>
-                <button id="start-game-btn" class="primary-btn" disabled>START GAME</button>
+                <button id="start-game-btn" class="primary-btn green" disabled>START GAME</button>
             </div>
             <div class="waiting-info">Waiting for players... (min 2 to start)</div>
         </div>
@@ -73,15 +82,7 @@
             
             <!-- Dice Area -->
             <div class="dice-area">
-                <div id="dice" class="dice" title="Click to roll">
-                    <div class="dot dot-1"></div>
-                    <div class="dot dot-2"></div>
-                    <div class="dot dot-3"></div>
-                    <div class="dot dot-7"></div>
-                    <div class="dot dot-4"></div>
-                    <div class="dot dot-5"></div>
-                    <div class="dot dot-6"></div>
-                </div>
+                <div id="dice" class="dice" title="Click to roll"></div>
                 <div id="dice-value" class="dice-value"></div>
             </div>
             
@@ -90,7 +91,9 @@
             
             <!-- Chat Panel -->
             <div id="chat-panel" class="chat-panel">
-                <div id="chat-messages" class="chat-messages"></div>
+                <div id="chat-messages" class="chat-messages">
+                    <div id="chat-empty" class="chat-empty">No messages yet. Say hello!</div>
+                </div>
                 <div class="chat-input-group">
                     <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100">
                     <button id="chat-send-btn">Send</button>
@@ -109,10 +112,11 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/socket-client.js?v=2"></script>
     <script src="js/ui.js?v=2"></script>
-    <script src="js/dice.js?v=2"></script>
+    <script src="js/dice3d.js?v=1"></script>
     <script src="js/board.js"></script>
     <script src="js/game.js?v=2"></script>
     <script src="js/main.js?v=2"></script>

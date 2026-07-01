@@ -11,7 +11,7 @@
     position: relative;
 }
 
-/* Home bases (corners) */
+/* Home bases (corners) — game colors, same in both themes */
 .cell.home-red { background: #e74c3c; }
 .cell.home-blue { background: #3498db; }
 .cell.home-green { background: #2ecc71; }
@@ -19,7 +19,7 @@
 
 /* Safe squares (stars) */
 .cell.safe {
-    background: #fff;
+    background: var(--surface-alt, #faf8f5);
 }
 
 .cell.safe::after {
@@ -28,10 +28,10 @@
 }
 
 /* Home columns */
-.cell.home-col-red { background: #e74c3c; opacity: 0.7; }
-.cell.home-col-blue { background: #3498db; opacity: 0.7; }
-.cell.home-col-green { background: #2ecc71; opacity: 0.7; }
-.cell.home-col-yellow { background: #f1c40f; opacity: 0.7; }
+.cell.home-col-red { background: #e74c3c; opacity: 0.75; }
+.cell.home-col-blue { background: #3498db; opacity: 0.75; }
+.cell.home-col-green { background: #2ecc71; opacity: 0.75; }
+.cell.home-col-yellow { background: #f1c40f; opacity: 0.75; }
 
 /* Center (win zone) */
 .cell.center {
@@ -40,12 +40,12 @@
 
 /* Path cells */
 .cell.path {
-    background: #ecf0f1;
+    background: var(--dice-bg, #f5f0e8);
 }
 
 /* Empty cells */
 .cell.empty {
-    background: #1a1a2e;
+    background: var(--canvas-bg, #ede6d8);
 }
 
 /* Token on board */
@@ -53,30 +53,33 @@
     width: 60%;
     height: 60%;
     border-radius: 50%;
-    border: 2px solid #fff;
+    border: 3px solid rgba(255, 255, 255, 0.9);
     position: absolute;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     z-index: 20;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .token:hover {
     transform: scale(1.1);
+    z-index: 25;
 }
 
-.token.red { background: #e74c3c; }
-.token.blue { background: #3498db; }
-.token.green { background: #2ecc71; }
-.token.yellow { background: #f1c40f; }
+.token.red { background: radial-gradient(circle at 35% 35%, #ff6b6b, #e74c3c, #c0392b); }
+.token.blue { background: radial-gradient(circle at 35% 35%, #74b9ff, #3498db, #2980b9); }
+.token.green { background: radial-gradient(circle at 35% 35%, #55efc4, #2ecc71, #27ae60); }
+.token.yellow { background: radial-gradient(circle at 35% 35%, #ffeaa7, #f1c40f, #f39c12); }
 
 .token.selectable {
-    animation: pulse-token 0.5s infinite;
-    box-shadow: 0 0 10px currentColor;
+    animation: pulse-token 0.6s ease-in-out infinite;
+    box-shadow: 0 0 0 4px rgba(230, 126, 34, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
 }
 
 @keyframes pulse-token {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
+    50% { transform: scale(1.2); }
 }
 
 .token.moving {
@@ -87,21 +90,25 @@
 .token.in-home {
     width: 50%;
     height: 50%;
+    border-width: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 /* Token count badge */
 .token-count {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #333;
-    color: #fff;
+    top: -6px;
+    right: -6px;
+    background: var(--text, #2d1b0e);
+    color: var(--bg, #fff);
     border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    font-size: 0.6rem;
+    width: 20px;
+    height: 20px;
+    font-size: 0.65rem;
     display: flex;
     justify-content: center;
     align-items: center;
-    border: 1px solid #fff;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
