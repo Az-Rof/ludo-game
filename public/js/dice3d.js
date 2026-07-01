@@ -180,7 +180,7 @@ class LudoDice3D {
         };
 
         // Add random extra full spins for tumbling feel
-        const spins = 1 + Math.floor(Math.random() * 1); // 1-2 full spins
+        const spins = 1 + Math.floor(Math.random() * 2); // 1-2 full spins
         const end = {
             x: target.x + (Math.random() > 0.5 ? 1 : -1) * spins * Math.PI * 2,
             y: target.y + (Math.random() > 0.5 ? 1 : -1) * spins * Math.PI * 2,

@@ -25,8 +25,14 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
     const urlPath = req.url.split('?')[0]; // Strip query params
     
-    // POST /save-board — persist board layout to file
+    // POST /save-board — persist board layout to file (localhost only)
     if (req.method === 'POST' && urlPath === '/save-board') {
+        const addr = req.socket.remoteAddress;
+        if (addr !== '127.0.0.1' && addr !== '::1' && addr !== '::ffff:127.0.0.1') {
+            res.writeHead(403, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Forbidden' }));
+            return;
+        }
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
