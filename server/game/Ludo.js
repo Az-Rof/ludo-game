@@ -37,7 +37,7 @@ class LudoGame {
         // Track layout
         this.startPositions = [0, 13, 26, 39]; // Red, Yellow, Blue, Green
         this.homeEntries = [50, 11, 24, 37];
-        this.safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+        this.safeSquares = [8, 21, 34, 47];
     }
     
     rollDice() {

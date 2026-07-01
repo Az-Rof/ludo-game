@@ -20,7 +20,7 @@ class LudoBoard {
         };
         
         this.layout = this.createLayout();
-        this.safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+        this.safeSquares = [8, 21, 34, 47];
         this.editMode = false;
         this.selectedCell = null;
         
@@ -140,151 +140,86 @@ class LudoBoard {
     
         createLayout() {
         var grid = Array(15).fill(null).map(function() { return Array(15).fill(0); });
-        grid[0][0] = 2;
-        grid[0][1] = 2;
-        grid[0][2] = 2;
-        grid[0][3] = 2;
-        grid[0][6] = 1;
+
+        // Top arm: rows 0-5, cols 6-8
+        for (var r = 0; r <= 5; r++) {
+            grid[r][6] = 1;
+            grid[r][8] = 1;
+        }
+        for (var r = 1; r <= 5; r++) {
+            grid[r][7] = 3; // Yellow home column
+        }
         grid[0][7] = 1;
-        grid[0][8] = 1;
-        grid[0][11] = 2;
-        grid[0][12] = 2;
-        grid[0][13] = 2;
-        grid[0][14] = 2;
-        grid[1][0] = 2;
-        grid[1][1] = 2;
-        grid[1][2] = 2;
-        grid[1][3] = 2;
-        grid[1][6] = 1;
-        grid[1][7] = 3;
-        grid[1][8] = 1;
-        grid[1][11] = 2;
-        grid[1][12] = 2;
-        grid[1][13] = 2;
-        grid[1][14] = 2;
-        grid[2][0] = 2;
-        grid[2][1] = 2;
-        grid[2][2] = 2;
-        grid[2][3] = 2;
-        grid[2][6] = 1;
-        grid[2][7] = 3;
-        grid[2][8] = 1;
-        grid[2][11] = 2;
-        grid[2][12] = 2;
-        grid[2][13] = 2;
-        grid[2][14] = 2;
-        grid[3][0] = 2;
-        grid[3][1] = 2;
-        grid[3][2] = 2;
-        grid[3][3] = 2;
-        grid[3][6] = 1;
-        grid[3][7] = 3;
-        grid[3][8] = 1;
-        grid[3][11] = 2;
-        grid[3][12] = 2;
-        grid[3][13] = 2;
-        grid[3][14] = 2;
-        grid[4][6] = 1;
-        grid[4][7] = 3;
-        grid[4][8] = 1;
-        grid[5][6] = 1;
-        grid[5][7] = 3;
-        grid[5][8] = 1;
-        grid[6][0] = 1;
-        grid[6][1] = 1;
-        grid[6][2] = 1;
-        grid[6][3] = 1;
-        grid[6][4] = 1;
-        grid[6][5] = 1;
-        grid[6][6] = 4;
-        grid[6][7] = 4;
-        grid[6][8] = 4;
-        grid[6][9] = 1;
-        grid[6][10] = 1;
-        grid[6][11] = 1;
-        grid[6][12] = 1;
-        grid[6][13] = 1;
-        grid[6][14] = 1;
+
+        // Left arm: rows 6-8, cols 0-5
+        for (var c = 0; c <= 5; c++) {
+            grid[6][c] = 1;
+            grid[8][c] = 1;
+        }
+        for (var c = 1; c <= 5; c++) {
+            grid[7][c] = 3; // Red home column
+        }
         grid[7][0] = 1;
-        grid[7][1] = 3;
-        grid[7][2] = 3;
-        grid[7][3] = 3;
-        grid[7][4] = 3;
-        grid[7][5] = 3;
-        grid[7][6] = 4;
-        grid[7][7] = 4;
-        grid[7][8] = 4;
-        grid[7][9] = 3;
-        grid[7][10] = 3;
-        grid[7][11] = 3;
-        grid[7][12] = 3;
-        grid[7][13] = 3;
+
+        // Right arm: rows 6-8, cols 9-14
+        for (var c = 9; c <= 14; c++) {
+            grid[6][c] = 1;
+            grid[8][c] = 1;
+        }
+        for (var c = 9; c <= 13; c++) {
+            grid[7][c] = 3; // Blue home column
+        }
         grid[7][14] = 1;
-        grid[8][0] = 1;
-        grid[8][1] = 1;
-        grid[8][2] = 1;
-        grid[8][3] = 1;
-        grid[8][4] = 1;
-        grid[8][5] = 1;
-        grid[8][6] = 4;
-        grid[8][7] = 4;
-        grid[8][8] = 4;
-        grid[8][9] = 1;
-        grid[8][10] = 1;
-        grid[8][11] = 1;
-        grid[8][12] = 1;
-        grid[8][13] = 1;
-        grid[8][14] = 1;
-        grid[9][6] = 1;
-        grid[9][7] = 3;
-        grid[9][8] = 1;
-        grid[10][6] = 1;
-        grid[10][7] = 3;
-        grid[10][8] = 1;
-        grid[11][0] = 2;
-        grid[11][1] = 2;
-        grid[11][2] = 2;
-        grid[11][3] = 2;
-        grid[11][6] = 1;
-        grid[11][7] = 3;
-        grid[11][8] = 1;
-        grid[11][11] = 2;
-        grid[11][12] = 2;
-        grid[11][13] = 2;
-        grid[11][14] = 2;
-        grid[12][0] = 2;
-        grid[12][1] = 2;
-        grid[12][2] = 2;
-        grid[12][3] = 2;
-        grid[12][6] = 1;
-        grid[12][7] = 3;
-        grid[12][8] = 1;
-        grid[12][11] = 2;
-        grid[12][12] = 2;
-        grid[12][13] = 2;
-        grid[12][14] = 2;
-        grid[13][0] = 2;
-        grid[13][1] = 2;
-        grid[13][2] = 2;
-        grid[13][3] = 2;
-        grid[13][6] = 1;
-        grid[13][7] = 3;
-        grid[13][8] = 1;
-        grid[13][11] = 2;
-        grid[13][12] = 2;
-        grid[13][13] = 2;
-        grid[13][14] = 2;
-        grid[14][0] = 2;
-        grid[14][1] = 2;
-        grid[14][2] = 2;
-        grid[14][3] = 2;
-        grid[14][6] = 1;
+
+        // Bottom arm: rows 9-14, cols 6-8
+        for (var r = 9; r <= 14; r++) {
+            grid[r][6] = 1;
+            grid[r][8] = 1;
+        }
+        for (var r = 9; r <= 13; r++) {
+            grid[r][7] = 3; // Green home column
+        }
         grid[14][7] = 1;
-        grid[14][8] = 1;
-        grid[14][11] = 2;
-        grid[14][12] = 2;
-        grid[14][13] = 2;
-        grid[14][14] = 2;
+
+        // Center: rows 6-8, cols 6-8
+        for (var r = 6; r <= 8; r++) {
+            for (var c = 6; c <= 8; c++) {
+                grid[r][c] = 4;
+            }
+        }
+
+        // Home bases — 4x4 corner blocks (traditional)
+        // Red (top-left)
+        for (var r = 0; r <= 3; r++) {
+            for (var c = 0; c <= 3; c++) {
+                grid[r][c] = 2;
+            }
+        }
+        // Yellow (top-right)
+        for (var r = 0; r <= 3; r++) {
+            for (var c = 11; c <= 14; c++) {
+                grid[r][c] = 2;
+            }
+        }
+        // Blue (bottom-right)
+        for (var r = 11; r <= 14; r++) {
+            for (var c = 11; c <= 14; c++) {
+                grid[r][c] = 2;
+            }
+        }
+        // Green (bottom-left)
+        for (var r = 11; r <= 14; r++) {
+            for (var c = 0; c <= 3; c++) {
+                grid[r][c] = 2;
+            }
+        }
+
+        // Colored start tiles on the track (override path → player color)
+        grid[6][1] = 2;  // Red start
+        grid[1][8] = 2;  // Yellow start
+        grid[8][13] = 2; // Blue start
+        grid[13][6] = 2; // Green start
+
         return grid;
     }
     resize() {
@@ -350,19 +285,26 @@ class LudoBoard {
     }
     
     getHomeBaseColor(r, c) {
-        if (r < 4 && c < 4) {           // Top-left (Red)
+        // Colored start tiles on the cross arms
+        if (r === 6 && c === 1) return this.colors.red;
+        if (r === 1 && c === 8) return this.colors.yellow;
+        if (r === 8 && c === 13) return this.colors.blue;
+        if (r === 13 && c === 6) return this.colors.green;
+
+        // 4x4 corner home bases
+        if (r < 4 && c < 4) {
             if (r >= 1 && r <= 2 && c >= 1 && c <= 2) return this.colors.white;
             return this.colors.red;
         }
-        if (r < 4 && c > 10) {          // Top-right (Yellow)
+        if (r < 4 && c > 10) {
             if (r >= 1 && r <= 2 && c >= 12 && c <= 13) return this.colors.white;
             return this.colors.yellow;
         }
-        if (r > 10 && c > 10) {         // Bottom-right (Blue)
+        if (r > 10 && c > 10) {
             if (r >= 12 && r <= 13 && c >= 12 && c <= 13) return this.colors.white;
             return this.colors.blue;
         }
-        if (r > 10 && c < 4) {          // Bottom-left (Green)
+        if (r > 10 && c < 4) {
             if (r >= 12 && r <= 13 && c >= 1 && c <= 2) return this.colors.white;
             return this.colors.green;
         }
@@ -370,10 +312,10 @@ class LudoBoard {
     }
     
     getHomeColumnColor(r, c) {
-        if (c === 7 && r >= 1 && r <= 5) return this.colors.red;      // Top → center (stops before row 6)
-        if (r === 7 && c >= 9 && c <= 13) return this.colors.yellow;   // Right → center (stops before col 8)
-        if (c === 7 && r >= 9 && r <= 13) return this.colors.blue;     // Bottom → center (stops before row 8)
-        if (r === 7 && c >= 1 && c <= 5) return this.colors.green;     // Left → center (stops before col 6)
+        if (r === 7 && c >= 1 && c <= 5) return this.colors.red;    // Red: horizontal left
+        if (c === 7 && r >= 1 && r <= 5) return this.colors.yellow; // Yellow: vertical top
+        if (r === 7 && c >= 9 && c <= 13) return this.colors.blue;  // Blue: horizontal right
+        if (c === 7 && r >= 9 && r <= 13) return this.colors.green; // Green: vertical bottom
         return this.colors.white;
     }
     
@@ -383,60 +325,61 @@ class LudoBoard {
     }
     
     gridToTrack(r, c) {
-        // Clockwise track: Red starts at 0 (top-left), Yellow at 13, Blue at 26, Green at 39
-        if (r === 0 && c === 6) return 0;
-        if (r === 0 && c === 7) return 1;
-        if (r === 0 && c === 8) return 2;
-        if (r === 1 && c === 8) return 3;
-        if (r === 2 && c === 8) return 4;
-        if (r === 3 && c === 8) return 5;
-        if (r === 4 && c === 8) return 6;
-        if (r === 5 && c === 8) return 7;
-        if (r === 6 && c === 9) return 8;
-        if (r === 6 && c === 10) return 9;
-        if (r === 6 && c === 11) return 10;
-        if (r === 6 && c === 12) return 11;
-        if (r === 6 && c === 13) return 12;
-        if (r === 6 && c === 14) return 13;
-        if (r === 7 && c === 14) return 14;
-        if (r === 8 && c === 14) return 15;
-        if (r === 8 && c === 13) return 16;
-        if (r === 8 && c === 12) return 17;
-        if (r === 8 && c === 11) return 18;
-        if (r === 8 && c === 10) return 19;
-        if (r === 8 && c === 9) return 20;
-        if (r === 9 && c === 8) return 21;
-        if (r === 10 && c === 8) return 22;
-        if (r === 11 && c === 8) return 23;
-        if (r === 12 && c === 8) return 24;
-        if (r === 13 && c === 8) return 25;
-        if (r === 14 && c === 8) return 26;
-        if (r === 14 && c === 7) return 27;
-        if (r === 14 && c === 6) return 28;
-        if (r === 13 && c === 6) return 29;
-        if (r === 12 && c === 6) return 30;
-        if (r === 11 && c === 6) return 31;
-        if (r === 10 && c === 6) return 32;
-        if (r === 9 && c === 6) return 33;
-        if (r === 8 && c === 5) return 34;
-        if (r === 8 && c === 4) return 35;
-        if (r === 8 && c === 3) return 36;
-        if (r === 8 && c === 2) return 37;
-        if (r === 8 && c === 1) return 38;
-        if (r === 8 && c === 0) return 39;
-        if (r === 7 && c === 0) return 40;
-        if (r === 6 && c === 0) return 41;
-        if (r === 6 && c === 1) return 42;
-        if (r === 6 && c === 2) return 43;
-        if (r === 6 && c === 3) return 44;
-        if (r === 6 && c === 4) return 45;
-        if (r === 6 && c === 5) return 46;
-        if (r === 5 && c === 6) return 47;
-        if (r === 4 && c === 6) return 48;
-        if (r === 3 && c === 6) return 49;
-        if (r === 2 && c === 6) return 50;
-        if (r === 1 && c === 6) return 51;
-        
+        // Clockwise track: Red starts at 0 (row6,col1), Yellow at 13 (row1,col8),
+        // Blue at 26 (row8,col13), Green at 39 (row13,col6)
+        if (r === 6 && c === 1) return 0;
+        if (r === 6 && c === 2) return 1;
+        if (r === 6 && c === 3) return 2;
+        if (r === 6 && c === 4) return 3;
+        if (r === 6 && c === 5) return 4;
+        if (r === 5 && c === 6) return 5;
+        if (r === 4 && c === 6) return 6;
+        if (r === 3 && c === 6) return 7;
+        if (r === 2 && c === 6) return 8;
+        if (r === 1 && c === 6) return 9;
+        if (r === 0 && c === 6) return 10;
+        if (r === 0 && c === 7) return 11;
+        if (r === 0 && c === 8) return 12;
+        if (r === 1 && c === 8) return 13;
+        if (r === 2 && c === 8) return 14;
+        if (r === 3 && c === 8) return 15;
+        if (r === 4 && c === 8) return 16;
+        if (r === 5 && c === 8) return 17;
+        if (r === 6 && c === 9) return 18;
+        if (r === 6 && c === 10) return 19;
+        if (r === 6 && c === 11) return 20;
+        if (r === 6 && c === 12) return 21;
+        if (r === 6 && c === 13) return 22;
+        if (r === 6 && c === 14) return 23;
+        if (r === 7 && c === 14) return 24;
+        if (r === 8 && c === 14) return 25;
+        if (r === 8 && c === 13) return 26;
+        if (r === 8 && c === 12) return 27;
+        if (r === 8 && c === 11) return 28;
+        if (r === 8 && c === 10) return 29;
+        if (r === 8 && c === 9) return 30;
+        if (r === 9 && c === 8) return 31;
+        if (r === 10 && c === 8) return 32;
+        if (r === 11 && c === 8) return 33;
+        if (r === 12 && c === 8) return 34;
+        if (r === 13 && c === 8) return 35;
+        if (r === 14 && c === 8) return 36;
+        if (r === 14 && c === 7) return 37;
+        if (r === 14 && c === 6) return 38;
+        if (r === 13 && c === 6) return 39;
+        if (r === 12 && c === 6) return 40;
+        if (r === 11 && c === 6) return 41;
+        if (r === 10 && c === 6) return 42;
+        if (r === 9 && c === 6) return 43;
+        if (r === 8 && c === 5) return 44;
+        if (r === 8 && c === 4) return 45;
+        if (r === 8 && c === 3) return 46;
+        if (r === 8 && c === 2) return 47;
+        if (r === 8 && c === 1) return 48;
+        if (r === 8 && c === 0) return 49;
+        if (r === 7 && c === 0) return 50;
+        if (r === 6 && c === 0) return 51;
+
         return -1;
     }
     
@@ -519,67 +462,25 @@ class LudoBoard {
         const ctx = this.ctx;
         const cs = this.cellSize;
         
-        // START labels — inside each home base (centered in 4x4)
+        // START labels — inside each 4x4 home base
         ctx.font = `bold ${cs * 0.65}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         
-        // Red START (top-left base, center of 4x4)
-        ctx.fillText('START', 2 * cs, 3.5 * cs);
+        ctx.fillText('START', 2 * cs, 3.5 * cs);    // Red (TL)
+        ctx.fillText('START', 13 * cs, 3.5 * cs);   // Yellow (TR)
+        ctx.fillText('START', 13 * cs, 11.5 * cs);  // Blue (BR)
+        ctx.fillText('START', 2 * cs, 11.5 * cs);   // Green (BL)
         
-        // Yellow START (top-right base, center of 4x4)
-        ctx.fillText('START', 13 * cs, 3.5 * cs);
-        
-        // Blue START (bottom-right base, center of 4x4)
-        ctx.fillText('START', 13 * cs, 11.5 * cs);
-        
-        // Green START (bottom-left base, center of 4x4)
-        ctx.fillText('START', 2 * cs, 11.5 * cs);
-        
-        // HOME labels — on home columns near center
-        ctx.font = `bold ${cs * 0.45}px Arial`;
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
-        
-        // Red HOME (col 7, row 6)
-        ctx.fillText('HOME', 7.5 * cs, 6.5 * cs);
-        
-        // Yellow HOME (row 7, col 8)
-        ctx.save();
-        ctx.translate(8.5 * cs, 7.5 * cs);
-        ctx.fillText('HOME', 0, 0);
-        ctx.restore();
-        
-        // Blue HOME (col 7, row 8)
-        ctx.fillText('HOME', 7.5 * cs, 8.5 * cs);
-        
-        // Green HOME (row 7, col 6)
-        ctx.save();
-        ctx.translate(6.5 * cs, 7.5 * cs);
-        ctx.fillText('HOME', 0, 0);
-        ctx.restore();
-        
-        // BACK labels — at home column entry points
+        // HOME labels — at end of home columns (near center)
         ctx.font = `bold ${cs * 0.4}px Arial`;
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
         
-        // Red BACK (top of home column at row 1)
-        ctx.fillText('BACK', 7.5 * cs, 1.5 * cs);
-        
-        // Yellow BACK (right of home column at col 13)
-        ctx.save();
-        ctx.translate(13.5 * cs, 7.5 * cs);
-        ctx.fillText('BACK', 0, 0);
-        ctx.restore();
-        
-        // Blue BACK (bottom of home column at row 13)
-        ctx.fillText('BACK', 7.5 * cs, 13.5 * cs);
-        
-        // Green BACK (left of home column at col 1)
-        ctx.save();
-        ctx.translate(1.5 * cs, 7.5 * cs);
-        ctx.fillText('BACK', 0, 0);
-        ctx.restore();
+        ctx.fillText('HOME', 5.5 * cs, 7.5 * cs);  // Red (left)
+        ctx.fillText('HOME', 7.5 * cs, 5.5 * cs);  // Yellow (top)
+        ctx.fillText('HOME', 9.5 * cs, 7.5 * cs);  // Blue (right)
+        ctx.fillText('HOME', 7.5 * cs, 9.5 * cs);  // Green (bottom)
     }
     
     drawArrow(ctx, x1, y1, x2, y2) {
@@ -640,46 +541,46 @@ class LudoBoard {
     
     trackToGrid(position) {
         const trackMap = [
-            {r: 0, c: 6}, {r: 0, c: 7}, {r: 0, c: 8}, {r: 1, c: 8},
-            {r: 2, c: 8}, {r: 3, c: 8}, {r: 4, c: 8}, {r: 5, c: 8},
-            {r: 6, c: 9}, {r: 6, c: 10}, {r: 6, c: 11}, {r: 6, c: 12},
-            {r: 6, c: 13}, {r: 6, c: 14}, {r: 7, c: 14}, {r: 8, c: 14},
-            {r: 8, c: 13}, {r: 8, c: 12}, {r: 8, c: 11}, {r: 8, c: 10},
-            {r: 8, c: 9}, {r: 9, c: 8}, {r: 10, c: 8}, {r: 11, c: 8},
-            {r: 12, c: 8}, {r: 13, c: 8}, {r: 14, c: 8}, {r: 14, c: 7},
-            {r: 14, c: 6}, {r: 13, c: 6}, {r: 12, c: 6}, {r: 11, c: 6},
-            {r: 10, c: 6}, {r: 9, c: 6}, {r: 8, c: 5}, {r: 8, c: 4},
-            {r: 8, c: 3}, {r: 8, c: 2}, {r: 8, c: 1}, {r: 8, c: 0},
-            {r: 7, c: 0}, {r: 6, c: 0}, {r: 6, c: 1}, {r: 6, c: 2},
-            {r: 6, c: 3}, {r: 6, c: 4}, {r: 6, c: 5}, {r: 5, c: 6},
-            {r: 4, c: 6}, {r: 3, c: 6}, {r: 2, c: 6}, {r: 1, c: 6}
+            {r: 6, c: 1}, {r: 6, c: 2}, {r: 6, c: 3}, {r: 6, c: 4},
+            {r: 6, c: 5}, {r: 5, c: 6}, {r: 4, c: 6}, {r: 3, c: 6},
+            {r: 2, c: 6}, {r: 1, c: 6}, {r: 0, c: 6}, {r: 0, c: 7},
+            {r: 0, c: 8}, {r: 1, c: 8}, {r: 2, c: 8}, {r: 3, c: 8},
+            {r: 4, c: 8}, {r: 5, c: 8}, {r: 6, c: 9}, {r: 6, c: 10},
+            {r: 6, c: 11}, {r: 6, c: 12}, {r: 6, c: 13}, {r: 6, c: 14},
+            {r: 7, c: 14}, {r: 8, c: 14}, {r: 8, c: 13}, {r: 8, c: 12},
+            {r: 8, c: 11}, {r: 8, c: 10}, {r: 8, c: 9}, {r: 9, c: 8},
+            {r: 10, c: 8}, {r: 11, c: 8}, {r: 12, c: 8}, {r: 13, c: 8},
+            {r: 14, c: 8}, {r: 14, c: 7}, {r: 14, c: 6}, {r: 13, c: 6},
+            {r: 12, c: 6}, {r: 11, c: 6}, {r: 10, c: 6}, {r: 9, c: 6},
+            {r: 8, c: 5}, {r: 8, c: 4}, {r: 8, c: 3}, {r: 8, c: 2},
+            {r: 8, c: 1}, {r: 8, c: 0}, {r: 7, c: 0}, {r: 6, c: 0}
         ];
         
         return trackMap[position] || {r: 0, c: 0};
     }
     
     getHomeBasePosition(playerIndex, tokenIndex) {
-        // playerIndex: 0=Red(TL), 1=Yellow(TR), 2=Blue(BR), 3=Green(BL)
-        // 4x4 home bases with 2x2 token arrangement
+        // 4x4 home bases with inner 2x2 token spots
         const bases = [
-            [{r: 1, c: 1}, {r: 1, c: 2}, {r: 2, c: 1}, {r: 2, c: 2}],          // Red (inner 2x2 TL)
-            [{r: 1, c: 12}, {r: 1, c: 13}, {r: 2, c: 12}, {r: 2, c: 13}],      // Yellow (inner 2x2 TR)
-            [{r: 12, c: 12}, {r: 12, c: 13}, {r: 13, c: 12}, {r: 13, c: 13}],  // Blue (inner 2x2 BR)
-            [{r: 12, c: 1}, {r: 12, c: 2}, {r: 13, c: 1}, {r: 13, c: 2}]       // Green (inner 2x2 BL)
+            [{r: 1, c: 1}, {r: 1, c: 2}, {r: 2, c: 1}, {r: 2, c: 2}],          // Red (TL)
+            [{r: 1, c: 12}, {r: 1, c: 13}, {r: 2, c: 12}, {r: 2, c: 13}],      // Yellow (TR)
+            [{r: 12, c: 12}, {r: 12, c: 13}, {r: 13, c: 12}, {r: 13, c: 13}],  // Blue (BR)
+            [{r: 12, c: 1}, {r: 12, c: 2}, {r: 13, c: 1}, {r: 13, c: 2}]       // Green (BL)
         ];
-        
         return bases[playerIndex][tokenIndex];
     }
     
     getHomeColumnPosition(playerIndex, position) {
-        // playerIndex: 0=Red, 1=Yellow, 2=Blue, 3=Green
-        // position: 0 = first square after entering, 5 = last square before center
-        // Home columns end ONE cell before center area (rows 6-8, cols 6-8)
+        // position: 0 = entry, 4 = last before center, 5 = same as 4 (arrival)
         const columns = [
-            [{r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 5, c: 7}],  // Red (top → center, last pos overlaps at row 5)
-            [{r: 7, c: 13}, {r: 7, c: 12}, {r: 7, c: 11}, {r: 7, c: 10}, {r: 7, c: 9}, {r: 7, c: 9}], // Yellow (right → center, last pos overlaps at col 9)
-            [{r: 13, c: 7}, {r: 12, c: 7}, {r: 11, c: 7}, {r: 10, c: 7}, {r: 9, c: 7}, {r: 9, c: 7}], // Blue (bottom → center, last pos overlaps at row 9)
-            [{r: 7, c: 1}, {r: 7, c: 2}, {r: 7, c: 3}, {r: 7, c: 4}, {r: 7, c: 5}, {r: 7, c: 5}]   // Green (left → center, last pos overlaps at col 5)
+            // Red: row 7, cols 1→5 (left to center)
+            [{r: 7, c: 1}, {r: 7, c: 2}, {r: 7, c: 3}, {r: 7, c: 4}, {r: 7, c: 5}, {r: 7, c: 5}],
+            // Yellow: col 7, rows 1→5 (top to center)
+            [{r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 5, c: 7}],
+            // Blue: row 7, cols 13→9 (right to center)
+            [{r: 7, c: 13}, {r: 7, c: 12}, {r: 7, c: 11}, {r: 7, c: 10}, {r: 7, c: 9}, {r: 7, c: 9}],
+            // Green: col 7, rows 13→9 (bottom to center)
+            [{r: 13, c: 7}, {r: 12, c: 7}, {r: 11, c: 7}, {r: 10, c: 7}, {r: 9, c: 7}, {r: 9, c: 7}]
         ];
         
         return columns[playerIndex][position];

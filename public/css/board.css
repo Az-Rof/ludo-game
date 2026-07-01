@@ -29,9 +29,9 @@
 
 /* Home columns */
 .cell.home-col-red { background: #e74c3c; opacity: 0.75; }
+.cell.home-col-yellow { background: #f1c40f; opacity: 0.75; }
 .cell.home-col-blue { background: #3498db; opacity: 0.75; }
 .cell.home-col-green { background: #2ecc71; opacity: 0.75; }
-.cell.home-col-yellow { background: #f1c40f; opacity: 0.75; }
 
 /* Center (win zone) */
 .cell.center {
