@@ -135,8 +135,18 @@ class LudoUI {
         this.socketClient.onTokenMoved = (data) => {
             // Update game state
             this.updateGameState(data.state);
-            // Animate move
-            this.animateMultiplayerMove(data);
+
+            const captureInfo = data.result.captured;
+            const hasCapture = captureInfo && captureInfo.length > 0;
+
+            // Animate capture first, then move, then final render
+            if (hasCapture) {
+                this.animateCapture(data, () => {
+                    this.animateMultiplayerMove(data);
+                });
+            } else {
+                this.animateMultiplayerMove(data);
+            }
         };
         
         this.socketClient.onTokenCaptured = (data) => {
@@ -395,14 +405,143 @@ class LudoUI {
         this.statusElement.style.color = this.getColorHex(player.color);
     }
     
+    animateCapture(data, callback) {
+        const captures = data.result.captured;
+        if (!captures || captures.length === 0) { if (callback) callback(); return; }
+
+        let done = 0;
+        const total = captures.length;
+
+        captures.forEach(c => {
+            const el = document.getElementById(`token-${c.playerId}-${c.tokenId}`);
+            if (el) {
+                const homePos = window.board.getHomeBasePosition(c.playerId, c.tokenId);
+                const cs = window.board.cellSize;
+                const cx = homePos.c * cs + cs * 0.15;
+                const cy = homePos.r * cs + cs * 0.15;
+
+                el.style.transition = 'all 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                el.style.left = cx + 'px';
+                el.style.top = cy + 'px';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.3) rotate(180deg)';
+
+                setTimeout(() => {
+                    done++;
+                    if (done >= total && callback) callback();
+                }, 500);
+            } else {
+                done++;
+                if (done >= total && callback) callback();
+            }
+        });
+    }
+
     animateMultiplayerMove(data) {
-        // Simple animation - just update the board
-        this.renderBoard();
+        const { playerId, tokenId, result } = data;
+        const el = document.getElementById(`token-${playerId}-${tokenId}`);
+
+        if (result.type === 'move') {
+            // Track movement — step-by-step through intermediate cells
+            if (!el) { this.renderBoard(); return; }
+            el.classList.add('moving');
+
+            const from = result.from;
+            const to = result.to;
+            let pos = from;
+            const steps = [];
+            while (pos !== to) {
+                pos = (pos + 1) % 52;
+                steps.push(pos);
+            }
+
+            const cs = window.board.cellSize;
+            const boardWrapper = document.querySelector('.board-wrapper');
+
+            let stepIdx = 0;
+            const animate = () => {
+                if (stepIdx >= steps.length) {
+                    // Keep labels visible for 1.5s after animation, then clean
+                    setTimeout(() => {
+                        document.querySelectorAll('.step-label').forEach(t => t.remove());
+                        this.renderBoard();
+                    }, 1500);
+                    return;
+                }
+
+                const g = window.board.trackToGrid(steps[stepIdx]);
+                el.style.left = (g.c * cs + cs * 0.15) + 'px';
+                el.style.top = (g.r * cs + cs * 0.15) + 'px';
+
+                // Show step number on this cell (accumulates — previous labels stay)
+                const label = document.createElement('div');
+                label.className = 'step-label';
+                label.style.cssText = `position:absolute;left:${g.c * cs + 2}px;top:${g.r * cs + 2}px;font-size:${cs * 0.25}px;font-weight:700;color:#000;opacity:0.75;pointer-events:none;z-index:35;font-family:Arial,sans-serif;`;
+                label.textContent = stepIdx + 1;
+                boardWrapper.appendChild(label);
+
+                stepIdx++;
+                setTimeout(animate, 140);
+            };
+            animate();
+
+        } else if (result.type === 'enter') {
+            // Enter from home — pop onto the start tile with a bounce
+            if (!el) { this.renderBoard(); return; }
+
+            const startPos = window.game.startPositions[playerId];
+            const g = window.board.trackToGrid(startPos);
+            const cs = window.board.cellSize;
+
+            // Start small at home, scale up and move to start tile
+            el.style.transition = 'none';
+            el.style.transform = 'scale(0.3)';
+            el.style.opacity = '0';
+
+            requestAnimationFrame(() => {
+                el.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                el.style.left = (g.c * cs + cs * 0.15) + 'px';
+                el.style.top = (g.r * cs + cs * 0.15) + 'px';
+                el.style.transform = 'scale(1)';
+                el.style.opacity = '1';
+                setTimeout(() => {
+                    el.style.transition = '';
+                    this.renderBoard();
+                }, 400);
+            });
+
+        } else if (result.type === 'enterHome') {
+            // Entering home column — slide from track onto the first home column cell
+            if (!el) { this.renderBoard(); return; }
+            el.classList.add('moving');
+
+            const colPos = window.board.getHomeColumnPosition(playerId, 0);
+            const cs = window.board.cellSize;
+            el.style.left = (colPos.c * cs + cs * 0.15) + 'px';
+            el.style.top = (colPos.r * cs + cs * 0.15) + 'px';
+            setTimeout(() => this.renderBoard(), 200);
+
+        } else if (result.type === 'homeColumn') {
+            // Moving within home column
+            if (!el) { this.renderBoard(); return; }
+            el.classList.add('moving');
+
+            const idx = result.position - 52;
+            const colPos = window.board.getHomeColumnPosition(playerId, idx);
+            const cs = window.board.cellSize;
+            el.style.left = (colPos.c * cs + cs * 0.15) + 'px';
+            el.style.top = (colPos.r * cs + cs * 0.15) + 'px';
+            setTimeout(() => this.renderBoard(), 200);
+
+        } else {
+            // finish, or any other type — just render
+            this.renderBoard();
+        }
     }
     
     renderBoard() {
-        // Clear previous tokens
-        document.querySelectorAll('.token').forEach(t => t.remove());
+        // Clear previous tokens and step labels
+        document.querySelectorAll('.token, .step-label').forEach(t => t.remove());
         
         // Group tokens by tile to handle stacking
         const tileMap = new Map();

@@ -83,7 +83,8 @@
 }
 
 .token.moving {
-    transition: all 0.2s ease;
+    transition: all 0.13s linear;
+    z-index: 30;
 }
 
 /* Token in home base */

@@ -469,7 +469,7 @@ class LudoBoard {
     const cx = ox + sz / 2;
     const cy = oy + sz / 2;
 
-    // Red triangle (top-left quadrant)
+    // Yellow triangle (top-left quadrant)
     ctx.fillStyle = this.colors.yellow;
     ctx.beginPath();
     ctx.moveTo(ox, oy);
@@ -478,7 +478,7 @@ class LudoBoard {
     ctx.closePath();
     ctx.fill();
 
-    // Yellow triangle (top-right quadrant)
+    // Blue triangle (top-right quadrant)
     ctx.fillStyle = this.colors.blue;
     ctx.beginPath();
     ctx.moveTo(ox + sz, oy);
@@ -487,7 +487,7 @@ class LudoBoard {
     ctx.closePath();
     ctx.fill();
 
-    // Blue triangle (bottom-right quadrant)
+    // Green triangle (bottom-right quadrant)
     ctx.fillStyle = this.colors.green;
     ctx.beginPath();
     ctx.moveTo(ox + sz, oy + sz);
@@ -496,7 +496,7 @@ class LudoBoard {
     ctx.closePath();
     ctx.fill();
 
-    // Green triangle (bottom-left quadrant)
+    // Red triangle (bottom-left quadrant)
     ctx.fillStyle = this.colors.red;
     ctx.beginPath();
     ctx.moveTo(ox, oy + sz);
