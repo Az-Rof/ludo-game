@@ -24,6 +24,7 @@ class SocketClient {
         this.onPowerupUsed = null;
         this.onDoubleMoveActive = null;
         this.onPowerupMessage = null;
+        this.onPowerupTargetRequired = null;
     }
     
     connect() {
@@ -37,6 +38,10 @@ class SocketClient {
         this.socket.on('disconnect', () => {
             this.connected = false;
             console.log('Disconnected from server');
+        });
+        
+        this.socket.on('powerupTargetRequired', (data) => {
+            if (this.onPowerupTargetRequired) this.onPowerupTargetRequired(data);
         });
         
         // Room events

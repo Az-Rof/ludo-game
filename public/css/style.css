@@ -938,3 +938,56 @@ body {
     background: var(--accent-soft);
     color: var(--accent);
 }
+
+/* === Ludo Shield & Powerup Additions === */
+@keyframes shield-glow {
+    0% { box-shadow: 0 0 4px 1px #3498db, inset 0 0 3px rgba(255,255,255,0.8); }
+    50% { box-shadow: 0 0 12px 3px #2980b9, inset 0 0 6px rgba(255,255,255,0.9); }
+    100% { box-shadow: 0 0 4px 1px #3498db, inset 0 0 3px rgba(255,255,255,0.8); }
+}
+
+.token.shielded {
+    animation: shield-glow 2s infinite ease-in-out !important;
+    border: 2px solid #fff !important;
+}
+
+.token.shielded::after {
+    content: '🛡️';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 11px;
+    background: rgba(42, 34, 29, 0.95);
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #3498db;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 50;
+    pointer-events: none;
+}
+
+/* Light mode support for shielded badge background */
+[data-theme="light"] .token.shielded::after {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.active-powerup-banner {
+    animation: pulse-banner-border 1.5s infinite alternate;
+}
+
+@keyframes pulse-banner-border {
+    from { 
+        border-color: #f1c40f; 
+        box-shadow: 0 0 4px rgba(241, 196, 15, 0.1); 
+        background: rgba(241, 196, 21, 0.03);
+    }
+    to { 
+        border-color: #e67e22; 
+        box-shadow: 0 0 12px rgba(241, 196, 15, 0.25); 
+        background: rgba(241, 196, 21, 0.08);
+    }
+}

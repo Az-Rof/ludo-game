@@ -45,6 +45,9 @@ class LudoUI {
         this.isLocalGame = false;
         this.localGame = null;
         this.teleportState = { active: false, powerupId: null, tokenIndex: null };
+        this.shieldState = { active: false, powerupId: null };
+        this.bombState = { active: false, powerupId: null };
+        this.swapState = { active: false, powerupId: null, ownTokenIndex: null };
         
         // Socket client
         this.socketClient = new SocketClient();
@@ -203,9 +206,37 @@ class LudoUI {
         
         this.socketClient.onPowerupUsed = (data) => {
             this.addSystemChatMessage(`⚡ ${data.playerName} used ${data.powerupType}! ${data.message}`);
+            
+            // Animate dice if value was controlled or boosted
+            if (data.effect && data.effect.type === 'dice_control') {
+                window.dice?.animateToValue(data.effect.value);
+            } else if (data.effect && data.effect.type === 'dice_boost') {
+                window.dice?.animateToValue(data.effect.newValue);
+            }
+            
             this.updateGameState(data.state);
             this.renderBoard();
             this.updateStatus();
+            
+            // If it is our turn, re-evaluate selectables!
+            const isMyTurn = this.socketClient.player && 
+                             data.playerName === this.socketClient.player.name;
+            if (isMyTurn) {
+                const player = window.game.getCurrentPlayer();
+                const selectable = window.game.getSelectableTokens(player);
+                
+                // Clear highlights
+                document.querySelectorAll('.token').forEach(t => t.classList.remove('selectable', 'selected'));
+                
+                if (selectable.length > 0) {
+                    this.highlightSelectableTokens(selectable);
+                } else if (window.game.diceValue > 0) {
+                    // Dice value was boosted but no moves are valid, auto-end turn
+                    setTimeout(() => {
+                        this.socketClient.socket.emit('moveToken', { tokenIndex: -1 });
+                    }, 800);
+                }
+            }
         };
         
         this.socketClient.onDoubleMoveActive = (data) => {
@@ -227,6 +258,13 @@ class LudoUI {
         
         this.socketClient.onPowerupMessage = (data) => {
             this.addSystemChatMessage(data.message);
+        };
+        
+        this.socketClient.onPowerupTargetRequired = (data) => {
+            const playerObj = window.game.players.find(p => p.name === this.socketClient.player.name);
+            if (playerObj) {
+                this.engagePowerupTargeting(data.powerupId, data.powerupType, playerObj);
+            }
         };
     }
     
@@ -357,6 +395,13 @@ class LudoUI {
     
     updateGameState(serverState) {
         if (!window.game) return;
+        
+        if (serverState.powerupSquares) {
+            window.game.powerupSquares = serverState.powerupSquares;
+            if (window.board) {
+                window.board.powerupSquares = serverState.powerupSquares;
+            }
+        }
         
         window.game.currentPlayer = serverState.currentPlayer;
         window.game.diceValue = serverState.diceValue;
@@ -672,6 +717,9 @@ class LudoUI {
         
         const tokenElement = document.createElement('div');
         tokenElement.className = `token ${color}`;
+        if (token.shielded) {
+            tokenElement.classList.add('shielded');
+        }
         tokenElement.id = `token-${playerIndex}-${tokenIndex}`;
         tokenElement.dataset.playerIndex = playerIndex;
         tokenElement.dataset.tokenIndex = tokenIndex;
@@ -680,16 +728,93 @@ class LudoUI {
         tokenElement.style.width = `${size}px`;
         tokenElement.style.height = `${size}px`;
         
+        // Highlight active selection in swap mode
+        if (this.swapState && this.swapState.active && this.swapState.ownTokenIndex === tokenIndex && playerIndex === window.game.currentPlayer) {
+            tokenElement.classList.add('selected');
+        }
+        
         // Click handler for human players
-        tokenElement.addEventListener('click', () => {
+        tokenElement.addEventListener('click', (e) => {
             const currentPlayer = window.game.getCurrentPlayer();
             const isMyTurn = this.socketClient.player && 
                              currentPlayer.name === this.socketClient.player.name;
             
+            if (!isMyTurn) return;
+
+            // 1. Shield Mode Click Interception
+            if (this.shieldState && this.shieldState.active) {
+                if (playerIndex === currentPlayer.id) {
+                    if (token.finished) {
+                        this.addSystemChatMessage("Cannot shield a finished token!");
+                        return;
+                    }
+                    this.socketClient.usePowerup(this.shieldState.powerupId, 'SHIELD', {
+                        tokenIndex: tokenIndex
+                    });
+                    this.cancelShieldMode();
+                } else {
+                    this.addSystemChatMessage("Please select one of your own tokens to shield.");
+                }
+                return;
+            }
+
+            // 2. Swap Mode Click Interception
+            if (this.swapState && this.swapState.active) {
+                // Step 1: select own active token on track
+                if (this.swapState.ownTokenIndex === null) {
+                    if (playerIndex === currentPlayer.id) {
+                        const isOnTrack = token.position >= 0 && token.position < 52 && !token.homeColumn && !token.finished;
+                        if (isOnTrack) {
+                            this.swapState.ownTokenIndex = tokenIndex;
+                            this.renderBoard();
+                            this.statusElement.textContent = "Now click an opponent's active token on the track to swap!";
+                            this.statusElement.style.color = "#f1c40f";
+                            this.renderPowerups();
+                            
+                            // Highlight opponent active track tokens
+                            document.querySelectorAll('.token').forEach(t => {
+                                t.classList.remove('selectable');
+                                const pIdx = parseInt(t.dataset.playerIndex);
+                                const tIdx = parseInt(t.dataset.tokenIndex);
+                                const tObj = window.game.players[pIdx].tokens[tIdx];
+                                const tOnTrack = tObj.position >= 0 && tObj.position < 52 && !tObj.homeColumn && !tObj.finished;
+                                if (pIdx !== currentPlayer.id && tOnTrack) {
+                                    t.classList.add('selectable');
+                                }
+                            });
+                        } else {
+                            this.addSystemChatMessage("You must select an active token on the track!");
+                        }
+                    } else {
+                        this.addSystemChatMessage("First select one of your own active tokens on the track.");
+                    }
+                    return;
+                }
+                // Step 2: select opponent active token on track
+                if (this.swapState.ownTokenIndex !== null) {
+                    if (playerIndex !== currentPlayer.id) {
+                        const isOnTrack = token.position >= 0 && token.position < 52 && !token.homeColumn && !token.finished;
+                        if (isOnTrack) {
+                            this.socketClient.usePowerup(this.swapState.powerupId, 'SWAP_TOKENS', {
+                                ownTokenIndex: this.swapState.ownTokenIndex,
+                                opponentPlayerId: playerIndex,
+                                opponentTokenIndex: tokenIndex
+                            });
+                            this.cancelSwapMode();
+                        } else {
+                            this.addSystemChatMessage("Target opponent token must be active on the track!");
+                        }
+                    } else {
+                        this.addSystemChatMessage("Select an opponent's active token on the track to swap with.");
+                    }
+                    return;
+                }
+            }
+
             // Check if Teleport Mode is active and waiting for a token selection
-            if (isMyTurn && this.teleportState && this.teleportState.active && this.teleportState.tokenIndex === null) {
+            if (this.teleportState && this.teleportState.active && this.teleportState.tokenIndex === null) {
                 // Verify this token belongs to the player
-                if (parseInt(tokenElement.dataset.playerIndex) === currentPlayer) {
+                if (playerIndex === currentPlayer.id) {
                     this.teleportState.tokenIndex = tokenIndex;
                     
                     // Highlight selected token visually
@@ -797,6 +922,41 @@ class LudoUI {
         document.querySelectorAll('.token').forEach(t => t.classList.remove('selected', 'selectable'));
         this.updateStatus();
         this.renderBoard();
+        this.renderPowerups();
+    }
+    
+    cancelShieldMode() {
+        this.shieldState = { active: false, powerupId: null };
+        document.querySelectorAll('.token').forEach(t => t.classList.remove('selected', 'selectable'));
+        this.updateStatus();
+        this.renderBoard();
+        this.renderPowerups();
+    }
+    
+    cancelBombMode() {
+        this.bombState = { active: false, powerupId: null };
+        if (window.board) {
+            window.board.onCanvasClick = null;
+            window.board.canvas.style.pointerEvents = 'none';
+        }
+        this.updateStatus();
+        this.renderBoard();
+        this.renderPowerups();
+    }
+    
+    cancelSwapMode() {
+        this.swapState = { active: false, powerupId: null, ownTokenIndex: null };
+        document.querySelectorAll('.token').forEach(t => t.classList.remove('selected', 'selectable'));
+        this.updateStatus();
+        this.renderBoard();
+        this.renderPowerups();
+    }
+    
+    cancelAllPowerupModes() {
+        this.cancelTeleportMode();
+        this.cancelShieldMode();
+        this.cancelBombMode();
+        this.cancelSwapMode();
     }
     
     renderPowerups() {
@@ -807,23 +967,52 @@ class LudoUI {
         
         this.powerupsList.innerHTML = '';
         
-        // Handle teleport mode UI display
+        // Handle active targeting mode banner display
+        let activeBanner = null;
         if (this.teleportState && this.teleportState.active) {
+            activeBanner = {
+                title: this.teleportState.tokenIndex === null 
+                    ? '🌀 Click one of your tokens on the board to select it' 
+                    : '🌀 Now click a white path square on the board to teleport',
+                cancelText: 'Cancel Teleport',
+                cancelFn: () => this.cancelTeleportMode()
+            };
+        } else if (this.shieldState && this.shieldState.active) {
+            activeBanner = {
+                title: '🛡️ Click one of your active tokens on the board to apply shield',
+                cancelText: 'Cancel Shield',
+                cancelFn: () => this.cancelShieldMode()
+            };
+        } else if (this.bombState && this.bombState.active) {
+            activeBanner = {
+                title: '💣 Click on any track square on the board to place a bomb!',
+                cancelText: 'Cancel Bomb',
+                cancelFn: () => this.cancelBombMode()
+            };
+        } else if (this.swapState && this.swapState.active) {
+            activeBanner = {
+                title: this.swapState.ownTokenIndex === null
+                    ? '🔄 Click one of your active track tokens to select it'
+                    : '🔄 Now click an opponent\'s active track token to swap positions',
+                cancelText: 'Cancel Swap',
+                cancelFn: () => this.cancelSwapMode()
+            };
+        }
+        
+        if (activeBanner) {
             const container = document.createElement('div');
-            container.className = 'teleport-active-container';
+            container.className = 'active-powerup-banner';
             container.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 12px; border: 2px dashed #f1c40f; border-radius: 8px; background: rgba(241, 196, 21, 0.05);';
             
             const text = document.createElement('div');
             text.style.cssText = 'font-weight: bold; color: #f1c40f; margin-bottom: 8px; font-size: 0.9rem;';
-            text.textContent = this.teleportState.tokenIndex === null 
-                ? '🌀 Click one of your tokens on the board to select it' 
-                : '🌀 Now click a white path square on the board to teleport';
+            text.textContent = activeBanner.title;
                 
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'secondary-btn';
             cancelBtn.style.cssText = 'padding: 6px 14px; font-size: 0.8rem; height: auto;';
-            cancelBtn.textContent = 'Cancel Teleport';
-            cancelBtn.onclick = () => this.cancelTeleportMode();
+            cancelBtn.textContent = activeBanner.cancelText;
+            cancelBtn.onclick = activeBanner.cancelFn;
             
             container.appendChild(text);
             container.appendChild(cancelBtn);
@@ -887,6 +1076,13 @@ class LudoUI {
     }
     
     handleUsePowerup(powerupId, powerupType, playerObj) {
+        // First, notify server we want to use the card so it can run gacha checks
+        this.socketClient.usePowerup(powerupId, powerupType);
+    }
+
+    engagePowerupTargeting(powerupId, powerupType, playerObj) {
+        this.cancelAllPowerupModes();
+        
         if (powerupType === 'TELEPORT') {
             // Activate Teleport Mode
             this.teleportState = { active: true, powerupId: powerupId, tokenIndex: null };
@@ -902,8 +1098,7 @@ class LudoUI {
                     t.classList.add('selectable');
                 }
             });
-            
-            this.renderPowerups(); // redraw panel to display teleporting state and cancel button
+            this.renderPowerups();
             
         } else if (powerupType === 'SKIP_TURN') {
             const opponents = window.game.players.filter(p => p.id !== playerObj.id);
@@ -924,11 +1119,116 @@ class LudoUI {
                 });
                 this.powerupModal.style.display = 'none';
             };
-            
             this.powerupModal.style.display = 'flex';
             
-        } else {
-            this.socketClient.usePowerup(powerupId, powerupType);
+        } else if (powerupType === 'STEAL') {
+            const opponents = window.game.players.filter(p => p.id !== playerObj.id);
+            this.powerupModalTitle.textContent = '✂️ Steal from Opponent';
+            this.powerupModalBody.innerHTML = `
+                <div>
+                    <label for="steal-target">Select Opponent to Steal From:</label>
+                    <select id="steal-target" class="modal-select">
+                        ${opponents.map(opp => `<option value="${opp.id}">${opp.name} (${opp.color.toUpperCase()})</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            
+            this.powerupModalConfirm.onclick = () => {
+                const targetPlayerId = parseInt(document.getElementById('steal-target').value);
+                this.socketClient.usePowerup(powerupId, powerupType, {
+                    targetPlayerId: targetPlayerId
+                });
+                this.powerupModal.style.display = 'none';
+            };
+            this.powerupModal.style.display = 'flex';
+
+        } else if (powerupType === 'DICE_CONTROL') {
+            const values = [1, 2, 3, 4, 5, 6];
+            this.powerupModalTitle.textContent = '🎯 Dice Control';
+            this.powerupModalBody.innerHTML = `
+                <div>
+                    <label for="dice-value-select">Choose Dice Value (1-6):</label>
+                    <select id="dice-value-select" class="modal-select">
+                        ${values.map(val => `<option value="${val}">${val}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            
+            this.powerupModalConfirm.onclick = () => {
+                const chosenValue = parseInt(document.getElementById('dice-value-select').value);
+                this.socketClient.usePowerup(powerupId, powerupType, {
+                    chosenValue: chosenValue
+                });
+                this.powerupModal.style.display = 'none';
+            };
+            this.powerupModal.style.display = 'flex';
+            
+        } else if (powerupType === 'SHIELD') {
+            this.shieldState = { active: true, powerupId: powerupId };
+            this.statusElement.textContent = "Click one of your active tokens on the board to shield it!";
+            this.statusElement.style.color = "#f1c40f";
+            
+            // Highlight player's non-finished tokens
+            document.querySelectorAll('.token').forEach(t => {
+                const pIdx = parseInt(t.dataset.playerIndex);
+                const tIdx = parseInt(t.dataset.tokenIndex);
+                const token = window.game.players[pIdx].tokens[tIdx];
+                if (pIdx === playerObj.id && !token.finished) {
+                    t.classList.add('selectable');
+                }
+            });
+            this.renderPowerups();
+            
+        } else if (powerupType === 'BOMB') {
+            this.bombState = { active: true, powerupId: powerupId };
+            if (window.board) {
+                window.board.canvas.style.pointerEvents = 'auto';
+            }
+            this.statusElement.textContent = "Click on any track square on the board to place a bomb!";
+            this.statusElement.style.color = "#f1c40f";
+            
+            // Register canvas click listener
+            window.board.onCanvasClick = (r, c) => {
+                const trackPos = window.board.gridToTrack(r, c);
+                if (trackPos >= 0 && trackPos < 52) {
+                    this.socketClient.usePowerup(powerupId, 'BOMB', {
+                        targetPosition: trackPos
+                    });
+                    this.cancelBombMode();
+                } else {
+                    this.addSystemChatMessage("Invalid target square. Please click on a valid path square (white tiles on the track).");
+                }
+            };
+            this.renderPowerups();
+            
+        } else if (powerupType === 'SWAP_TOKENS') {
+            const hasOwnActive = playerObj.tokens.some(t => t.position >= 0 && t.position < 52 && !t.homeColumn && !t.finished);
+            const hasOppActive = window.game.players.some(p => p.id !== playerObj.id && p.tokens.some(t => t.position >= 0 && t.position < 52 && !t.homeColumn && !t.finished));
+            
+            if (!hasOwnActive) {
+                this.addSystemChatMessage("You don't have any active tokens on the track to swap!");
+                return;
+            }
+            if (!hasOppActive) {
+                this.addSystemChatMessage("Opponents do not have any active tokens on the track to swap!");
+                return;
+            }
+            
+            this.swapState = { active: true, powerupId: powerupId, ownTokenIndex: null };
+            this.statusElement.textContent = "Click one of your active tokens on the track to swap!";
+            this.statusElement.style.color = "#f1c40f";
+            
+            // Highlight player's active tokens on the track
+            document.querySelectorAll('.token').forEach(t => {
+                const pIdx = parseInt(t.dataset.playerIndex);
+                const tIdx = parseInt(t.dataset.tokenIndex);
+                const token = window.game.players[pIdx].tokens[tIdx];
+                const isOnTrack = token.position >= 0 && token.position < 52 && !token.homeColumn && !token.finished;
+                if (pIdx === playerObj.id && isOnTrack) {
+                    t.classList.add('selectable');
+                }
+            });
+            this.renderPowerups();
         }
     }
 }

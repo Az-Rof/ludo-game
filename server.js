@@ -359,6 +359,17 @@ io.on('connection', (socket) => {
             });
         }
         
+        // Handle shield absorption messages
+        if (game.shieldAbsorbs && game.shieldAbsorbs.length > 0) {
+            game.shieldAbsorbs.forEach(absorb => {
+                const victim = game.players.find(p => p.id === absorb.playerId);
+                io.to(roomCode).emit('powerupMessage', {
+                    message: `🛡️ ${victim.name}'s token shield absorbed a capture from ${player.name}!`
+                });
+            });
+            game.shieldAbsorbs = []; // Clear
+        }
+        
         // Check win
         if (game.gameOver) {
             io.to(roomCode).emit('gameOver', {
@@ -385,6 +396,13 @@ io.on('connection', (socket) => {
             const hadExtraTurn = game.diceValue === 6;
             game.endTurn();
             
+            if (game.powerupRelocated) {
+                game.powerupRelocated = false;
+                io.to(roomCode).emit('powerupMessage', {
+                    message: "🌀 Power-up squares have relocated to new tiles!"
+                });
+            }
+            
             if (hadExtraTurn) {
                 io.to(roomCode).emit('extraTurn', {
                     playerId: player.id,
@@ -401,6 +419,59 @@ io.on('connection', (socket) => {
         }, 500);
     });
     
+    function getRandomPowerupParams(game, player, type) {
+        switch (type) {
+            case 'DICE_CONTROL':
+                return { chosenValue: Math.floor(Math.random() * 6) + 1 };
+            case 'SKIP_TURN':
+                const opps = game.players.filter(p => p.id !== player.id);
+                if (opps.length === 0) return {};
+                return { targetPlayerId: opps[Math.floor(Math.random() * opps.length)].id };
+            case 'STEAL':
+                const oppsWithCards = game.players.filter(p => p.id !== player.id && p.powerups && p.powerups.length > 0);
+                if (oppsWithCards.length === 0) return {};
+                return { targetPlayerId: oppsWithCards[Math.floor(Math.random() * oppsWithCards.length)].id };
+            case 'TELEPORT':
+                const teleTokens = player.tokens.map((t, idx) => ({ t, idx })).filter(item => !item.t.finished);
+                if (teleTokens.length === 0) return {};
+                return { 
+                    tokenIndex: teleTokens[Math.floor(Math.random() * teleTokens.length)].idx,
+                    targetPosition: Math.floor(Math.random() * 52)
+                };
+            case 'SWAP_TOKENS':
+                const ownActive = player.tokens.map((t, idx) => ({ t, idx })).filter(item => item.t.position >= 0 && item.t.position < 52 && !item.t.homeColumn && !item.t.finished);
+                const oppActive = [];
+                game.players.forEach(p => { 
+                    if (p.id !== player.id) {
+                        p.tokens.forEach((t, idx) => { 
+                            if (t.position >= 0 && t.position < 52 && !t.homeColumn && !t.finished) {
+                                oppActive.push({ pId: p.id, idx }); 
+                            }
+                        }); 
+                    }
+                });
+                if (ownActive.length === 0 || oppActive.length === 0) return {};
+                const ownChosen = ownActive[Math.floor(Math.random() * ownActive.length)].idx;
+                const oppChosen = oppActive[Math.floor(Math.random() * oppActive.length)];
+                return {
+                    ownTokenIndex: ownChosen,
+                    opponentPlayerId: oppChosen.pId,
+                    opponentTokenIndex: oppChosen.idx
+                };
+            case 'SHIELD':
+                const shieldTokens = player.tokens.map((t, idx) => ({ t, idx })).filter(item => !item.t.finished);
+                if (shieldTokens.length === 0) return {};
+                return { tokenIndex: shieldTokens[Math.floor(Math.random() * shieldTokens.length)].idx };
+            case 'BOMB':
+                const occupied = [];
+                game.players.forEach(p => p.tokens.forEach(t => { if (t.position >= 0 && t.position < 52 && !t.homeColumn && !t.finished) occupied.push(t.position); }));
+                const targetPosition = occupied.length > 0 ? occupied[Math.floor(Math.random() * occupied.length)] : Math.floor(Math.random() * 52);
+                return { targetPosition };
+            default:
+                return {};
+        }
+    }
+
     // Use powerup
     socket.on('usePowerup', (data) => {
         const roomCode = playerRooms.get(socket.id);
@@ -417,25 +488,73 @@ io.on('connection', (socket) => {
             return;
         }
         
-        const result = game.usePowerup(player, data.powerupId, data.params);
+        const powerup = player.powerups.find(p => p.id === data.powerupId);
+        if (!powerup) {
+            socket.emit('powerupResult', { success: false, error: 'Powerup not found' });
+            return;
+        }
+        
+        const isTargetable = ['TELEPORT', 'STEAL', 'SKIP_TURN', 'SHIELD', 'BOMB', 'DICE_CONTROL', 'SWAP_TOKENS'].includes(powerup.type);
+        
+        // 1. If powerup is targetable and player hasn't passed target params yet (first use click)
+        if (isTargetable && !data.params) {
+            // Roll gacha target type: 50% Selected, 50% Random
+            const targetGacha = Math.random() < 0.5 ? 'selected' : 'random';
+            
+            if (targetGacha === 'selected') {
+                // Tell user selection is required
+                socket.emit('powerupTargetRequired', { powerupId: data.powerupId, powerupType: powerup.type });
+                io.to(roomCode).emit('powerupMessage', {
+                    message: `🔮 ${player.name} is targeting ${powerup.name}...`
+                });
+                return;
+            } else {
+                // Random target!
+                const params = getRandomPowerupParams(game, player, powerup.type);
+                const result = game.usePowerup(player, data.powerupId, params);
+                
+                if (result.applied) {
+                    if (powerup.type === 'EXTRA_ROLL') {
+                        game.diceValue = 0;
+                    }
+                    io.to(roomCode).emit('powerupUsed', {
+                        playerId: player.id,
+                        playerName: player.name,
+                        playerColor: player.color,
+                        powerupType: powerup.type,
+                        message: `🎲 (Random Target!) ${result.message}`,
+                        effect: result.effect,
+                        state: game.getState()
+                    });
+                } else {
+                    // Fallback to manual selection if random choice failed to find valid targets
+                    socket.emit('powerupTargetRequired', { powerupId: data.powerupId, powerupType: powerup.type });
+                    io.to(roomCode).emit('powerupMessage', {
+                        message: `🔮 Random target for ${powerup.name} was unavailable. ${player.name} is choosing manually...`
+                    });
+                }
+                return;
+            }
+        }
+        
+        // 2. Non-targetable, or target params already selected by user
+        const result = game.usePowerup(player, data.powerupId, data.params || {});
         
         if (result.applied) {
-            // Apply special side effects on server game logic
-            if (data.powerupType === 'EXTRA_ROLL') {
-                game.diceValue = 0; // reset dice roll so they can roll again!
+            if (powerup.type === 'EXTRA_ROLL') {
+                game.diceValue = 0;
             }
-            
             io.to(roomCode).emit('powerupUsed', {
                 playerId: player.id,
                 playerName: player.name,
                 playerColor: player.color,
-                powerupType: data.powerupType,
+                powerupType: powerup.type,
                 message: result.message,
                 effect: result.effect,
                 state: game.getState()
             });
             
-            console.log(`Player ${player.name} used ${data.powerupType} in room ${roomCode}`);
+            console.log(`Player ${player.name} successfully used ${powerup.type} in room ${roomCode}`);
         } else {
             socket.emit('powerupResult', { success: false, error: result.message || 'Could not apply power-up' });
         }
