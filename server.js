@@ -370,6 +370,18 @@ io.on('connection', (socket) => {
         
         // End turn after delay
         setTimeout(() => {
+            if (player.doubleMoveActive) {
+                player.doubleMoveActive = false; // consume it
+                io.to(roomCode).emit('powerupMessage', {
+                    message: `⚡ ${player.name} is making a second move from Double Move!`
+                });
+                io.to(roomCode).emit('doubleMoveActive', {
+                    playerId: player.id,
+                    state: game.getState()
+                });
+                return;
+            }
+
             const hadExtraTurn = game.diceValue === 6;
             game.endTurn();
             
@@ -387,6 +399,46 @@ io.on('connection', (socket) => {
             
             startGameLoop(roomCode);
         }, 500);
+    });
+    
+    // Use powerup
+    socket.on('usePowerup', (data) => {
+        const roomCode = playerRooms.get(socket.id);
+        const game = games.get(roomCode);
+        
+        if (!game) {
+            socket.emit('powerupResult', { success: false, error: 'No game' });
+            return;
+        }
+        
+        const player = game.getPlayerBySocketId(socket.id);
+        if (!player) {
+            socket.emit('powerupResult', { success: false, error: 'Player not found' });
+            return;
+        }
+        
+        const result = game.usePowerup(player, data.powerupId, data.params);
+        
+        if (result.applied) {
+            // Apply special side effects on server game logic
+            if (data.powerupType === 'EXTRA_ROLL') {
+                game.diceValue = 0; // reset dice roll so they can roll again!
+            }
+            
+            io.to(roomCode).emit('powerupUsed', {
+                playerId: player.id,
+                playerName: player.name,
+                playerColor: player.color,
+                powerupType: data.powerupType,
+                message: result.message,
+                effect: result.effect,
+                state: game.getState()
+            });
+            
+            console.log(`Player ${player.name} used ${data.powerupType} in room ${roomCode}`);
+        } else {
+            socket.emit('powerupResult', { success: false, error: result.message || 'Could not apply power-up' });
+        }
     });
     
     // Chat message

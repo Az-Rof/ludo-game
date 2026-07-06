@@ -31,10 +31,20 @@ class LudoUI {
         this.chatInput = document.getElementById('chat-input');
         this.chatSendBtn = document.getElementById('chat-send-btn');
         
+        // Power-up elements
+        this.powerupsContainer = document.getElementById('powerups-container');
+        this.powerupsList = document.getElementById('powerups-list');
+        this.powerupModal = document.getElementById('powerup-modal');
+        this.powerupModalTitle = document.getElementById('powerup-modal-title');
+        this.powerupModalBody = document.getElementById('powerup-modal-body');
+        this.powerupModalCancel = document.getElementById('powerup-modal-cancel');
+        this.powerupModalConfirm = document.getElementById('powerup-modal-confirm');
+        
         // State
         this.username = '';
         this.isLocalGame = false;
         this.localGame = null;
+        this.teleportState = { active: false, powerupId: null, tokenIndex: null };
         
         // Socket client
         this.socketClient = new SocketClient();
@@ -57,6 +67,11 @@ class LudoUI {
         this.chatSendBtn.addEventListener('click', () => this.sendChat());
         this.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendChat();
+        });
+        
+        // Power-up modal cancel
+        this.powerupModalCancel?.addEventListener('click', () => {
+            this.powerupModal.style.display = 'none';
         });
         
         // Play again
@@ -185,6 +200,34 @@ class LudoUI {
         this.socketClient.onChatMessage = (data) => {
             this.addChatMessage(data.playerName, data.playerColor, data.message);
         };
+        
+        this.socketClient.onPowerupUsed = (data) => {
+            this.addSystemChatMessage(`⚡ ${data.playerName} used ${data.powerupType}! ${data.message}`);
+            this.updateGameState(data.state);
+            this.renderBoard();
+            this.updateStatus();
+        };
+        
+        this.socketClient.onDoubleMoveActive = (data) => {
+            this.updateGameState(data.state);
+            this.renderBoard();
+            this.updateStatus();
+            
+            // Highlight tokens for another move
+            const isMyTurn = this.socketClient.player && 
+                             window.game.players[data.playerId].name === this.socketClient.player.name;
+            if (isMyTurn) {
+                const player = window.game.getCurrentPlayer();
+                const selectable = window.game.getSelectableTokens(player);
+                if (selectable.length > 0) {
+                    this.highlightSelectableTokens(selectable);
+                }
+            }
+        };
+        
+        this.socketClient.onPowerupMessage = (data) => {
+            this.addSystemChatMessage(data.message);
+        };
     }
     
     showScreen(screenName) {
@@ -296,6 +339,11 @@ class LudoUI {
         // Setup player bar
         this.setupPlayerBar();
         
+        // Show powerups panel
+        if (this.powerupsContainer) {
+            this.powerupsContainer.style.display = 'block';
+        }
+        
         // Update state from server
         this.updateGameState(data.state);
         
@@ -326,8 +374,12 @@ class LudoUI {
                     homeColumn: t.homeColumn,
                     finished: t.finished
                 }));
+                window.game.players[index].powerups = playerState.powerups || [];
+                window.game.players[index].protectedForTurns = playerState.protectedForTurns || 0;
             }
         });
+        
+        this.renderPowerups();
     }
     
     setupPlayerBar() {
@@ -634,6 +686,41 @@ class LudoUI {
             const isMyTurn = this.socketClient.player && 
                              currentPlayer.name === this.socketClient.player.name;
             
+            // Check if Teleport Mode is active and waiting for a token selection
+            if (isMyTurn && this.teleportState && this.teleportState.active && this.teleportState.tokenIndex === null) {
+                // Verify this token belongs to the player
+                if (parseInt(tokenElement.dataset.playerIndex) === currentPlayer) {
+                    this.teleportState.tokenIndex = tokenIndex;
+                    
+                    // Highlight selected token visually
+                    document.querySelectorAll('.token').forEach(t => t.classList.remove('selected'));
+                    tokenElement.classList.add('selected');
+                    
+                    // Update status
+                    this.statusElement.textContent = "Click on any track square on the board to teleport your token!";
+                    this.statusElement.style.color = "#f1c40f"; // yellow prompt
+                    
+                    // Redraw powerups panel to show the next step of instructions
+                    this.renderPowerups();
+                    
+                    // Register the canvas click callback
+                    window.board.onCanvasClick = (r, c) => {
+                        const trackPos = window.board.gridToTrack(r, c);
+                        if (trackPos >= 0 && trackPos < 52) {
+                            this.socketClient.usePowerup(this.teleportState.powerupId, 'TELEPORT', {
+                                tokenIndex: this.teleportState.tokenIndex,
+                                targetPosition: trackPos
+                            });
+                            // Reset teleport state
+                            this.cancelTeleportMode();
+                        } else {
+                            this.addSystemChatMessage("Invalid target square. Please click on a valid path square (white tiles on the track).");
+                        }
+                    };
+                }
+                return;
+            }
+            
             if (isMyTurn && window.game.diceValue > 0) {
                 this.socketClient.moveToken(tokenIndex);
             }
@@ -699,5 +786,149 @@ class LudoUI {
     dismissChatEmpty() {
         const empty = document.getElementById('chat-empty');
         if (empty) empty.style.display = 'none';
+    }
+    
+    cancelTeleportMode() {
+        this.teleportState = { active: false, powerupId: null, tokenIndex: null };
+        if (window.board) {
+            window.board.onCanvasClick = null;
+            window.board.canvas.style.pointerEvents = 'none';
+        }
+        document.querySelectorAll('.token').forEach(t => t.classList.remove('selected', 'selectable'));
+        this.updateStatus();
+        this.renderBoard();
+    }
+    
+    renderPowerups() {
+        if (!window.game || !this.socketClient.player || !this.powerupsList) return;
+        
+        const playerObj = window.game.players.find(p => p.name === this.socketClient.player.name);
+        if (!playerObj) return;
+        
+        this.powerupsList.innerHTML = '';
+        
+        // Handle teleport mode UI display
+        if (this.teleportState && this.teleportState.active) {
+            const container = document.createElement('div');
+            container.className = 'teleport-active-container';
+            container.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 12px; border: 2px dashed #f1c40f; border-radius: 8px; background: rgba(241, 196, 21, 0.05);';
+            
+            const text = document.createElement('div');
+            text.style.cssText = 'font-weight: bold; color: #f1c40f; margin-bottom: 8px; font-size: 0.9rem;';
+            text.textContent = this.teleportState.tokenIndex === null 
+                ? '🌀 Click one of your tokens on the board to select it' 
+                : '🌀 Now click a white path square on the board to teleport';
+                
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'secondary-btn';
+            cancelBtn.style.cssText = 'padding: 6px 14px; font-size: 0.8rem; height: auto;';
+            cancelBtn.textContent = 'Cancel Teleport';
+            cancelBtn.onclick = () => this.cancelTeleportMode();
+            
+            container.appendChild(text);
+            container.appendChild(cancelBtn);
+            this.powerupsList.appendChild(container);
+            return;
+        }
+        
+        const powerups = playerObj.powerups || [];
+        
+        if (powerups.length === 0) {
+            this.powerupsList.innerHTML = '<div class="no-powerups-msg">No power-ups yet. Land on safe squares or capture opponents to get them!</div>';
+            return;
+        }
+        
+        const isMyTurn = window.game.currentPlayer === playerObj.id;
+        const powerupTypes = Powerup.getPowerupTypes();
+        
+        powerups.forEach(p => {
+            const definition = powerupTypes.find(t => t.id === p.type);
+            if (!definition) return;
+            
+            const card = document.createElement('div');
+            card.className = `powerup-card ${definition.rarity}`;
+            if (!isMyTurn) {
+                card.classList.add('disabled');
+            }
+            
+            const badge = document.createElement('span');
+            badge.className = 'powerup-rarity-badge';
+            badge.textContent = definition.rarity;
+            card.appendChild(badge);
+            
+            const icon = document.createElement('div');
+            icon.className = 'powerup-icon';
+            icon.textContent = definition.icon;
+            card.appendChild(icon);
+            
+            const name = document.createElement('div');
+            name.className = 'powerup-name';
+            name.textContent = definition.name;
+            card.appendChild(name);
+            
+            const desc = document.createElement('div');
+            desc.className = 'powerup-desc';
+            desc.textContent = definition.description;
+            card.appendChild(desc);
+            
+            const btn = document.createElement('button');
+            btn.className = 'powerup-btn';
+            btn.textContent = 'Use';
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isMyTurn) {
+                    this.handleUsePowerup(p.id, p.type, playerObj);
+                }
+            });
+            card.appendChild(btn);
+            
+            this.powerupsList.appendChild(card);
+        });
+    }
+    
+    handleUsePowerup(powerupId, powerupType, playerObj) {
+        if (powerupType === 'TELEPORT') {
+            // Activate Teleport Mode
+            this.teleportState = { active: true, powerupId: powerupId, tokenIndex: null };
+            if (window.board) {
+                window.board.canvas.style.pointerEvents = 'auto'; // enable canvas clicking
+            }
+            this.statusElement.textContent = "Select one of your tokens on the board to teleport.";
+            this.statusElement.style.color = "#f1c40f";
+            
+            // Highlight player's active tokens on the board
+            document.querySelectorAll('.token').forEach(t => {
+                if (parseInt(t.dataset.playerIndex) === playerObj.id) {
+                    t.classList.add('selectable');
+                }
+            });
+            
+            this.renderPowerups(); // redraw panel to display teleporting state and cancel button
+            
+        } else if (powerupType === 'SKIP_TURN') {
+            const opponents = window.game.players.filter(p => p.id !== playerObj.id);
+            this.powerupModalTitle.textContent = '⏭️ Skip Opponent Turn';
+            this.powerupModalBody.innerHTML = `
+                <div>
+                    <label for="skip-target">Select Opponent to Skip:</label>
+                    <select id="skip-target" class="modal-select">
+                        ${opponents.map(opp => `<option value="${opp.id}">${opp.name} (${opp.color.toUpperCase()})</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            
+            this.powerupModalConfirm.onclick = () => {
+                const targetPlayerId = parseInt(document.getElementById('skip-target').value);
+                this.socketClient.usePowerup(powerupId, powerupType, {
+                    targetPlayerId: targetPlayerId
+                });
+                this.powerupModal.style.display = 'none';
+            };
+            
+            this.powerupModal.style.display = 'flex';
+            
+        } else {
+            this.socketClient.usePowerup(powerupId, powerupType);
+        }
     }
 }

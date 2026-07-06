@@ -21,6 +21,9 @@ class SocketClient {
         this.onGameOver = null;
         this.onChatMessage = null;
         this.onNoMoves = null;
+        this.onPowerupUsed = null;
+        this.onDoubleMoveActive = null;
+        this.onPowerupMessage = null;
     }
     
     connect() {
@@ -98,6 +101,19 @@ class SocketClient {
         this.socket.on('chatMessage', (data) => {
             if (this.onChatMessage) this.onChatMessage(data);
         });
+        
+        // Power-up events
+        this.socket.on('powerupUsed', (data) => {
+            if (this.onPowerupUsed) this.onPowerupUsed(data);
+        });
+        
+        this.socket.on('doubleMoveActive', (data) => {
+            if (this.onDoubleMoveActive) this.onDoubleMoveActive(data);
+        });
+        
+        this.socket.on('powerupMessage', (data) => {
+            if (this.onPowerupMessage) this.onPowerupMessage(data);
+        });
     }
     
     createRoom(playerName) {
@@ -126,6 +142,12 @@ class SocketClient {
     
     sendChat(message) {
         this.socket.emit('chatMessage', { message: message });
+    }
+    
+    usePowerup(powerupId, powerupType, params = {}) {
+        if (this.socket) {
+            this.socket.emit('usePowerup', { powerupId, powerupType, params });
+        }
     }
     
     disconnect() {

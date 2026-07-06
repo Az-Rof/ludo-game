@@ -89,6 +89,14 @@
             <!-- Status -->
             <div id="status" class="status"></div>
             
+            <!-- Powerups Area -->
+            <div id="powerups-container" class="powerups-container" style="display: none;">
+                <div class="powerups-header">⚡ YOUR POWER-UPS</div>
+                <div id="powerups-list" class="powerups-list">
+                    <div class="no-powerups-msg">No power-ups yet. Land on safe squares or capture opponents to get them!</div>
+                </div>
+            </div>
+            
             <!-- Chat Panel -->
             <div id="chat-panel" class="chat-panel">
                 <div id="chat-messages" class="chat-messages">
@@ -111,10 +119,25 @@
         </div>
     </div>
 
+    <!-- Powerup Target Selection Modal -->
+    <div id="powerup-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 id="powerup-modal-title">Select Target</h3>
+            <div id="powerup-modal-body" class="modal-body">
+                <!-- Modal inputs go here dynamically -->
+            </div>
+            <div class="modal-actions">
+                <button id="powerup-modal-cancel" class="secondary-btn">Cancel</button>
+                <button id="powerup-modal-confirm" class="primary-btn green">Use Power-up</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/socket-client.js?v=2"></script>
+    <script src="js/Powerup.js?v=2"></script>
     <script src="js/ui.js?v=2"></script>
     <script src="js/dice3d.js?v=1"></script>
     <script src="js/board.js"></script>

@@ -50,6 +50,7 @@ class LudoGame {
         
         // Safe squares (star positions)
         this.safeSquares = [8, 21, 34, 47];
+        this.powerupSquares = [4, 17, 30, 43];
     }
     
     // Roll dice
