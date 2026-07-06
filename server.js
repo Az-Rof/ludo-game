@@ -471,7 +471,6 @@ io.on('connection', (socket) => {
                 return {};
         }
     }
-
     // Use powerup
     socket.on('usePowerup', (data) => {
         const roomCode = playerRooms.get(socket.id);

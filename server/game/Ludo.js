@@ -25,6 +25,8 @@ class LudoGame {
                 captureCount: 0
             };
             this.players.push(player);
+            // Grant 1 starting power-up
+            this.grantPowerup(player);
         }
         
         // Initialize tokens
@@ -234,7 +236,6 @@ class LudoGame {
                         this.shieldAbsorbs.push({ playerId: opponent.id, tokenId: oppIndex, byPlayerId: player.id });
                         return; // Shield absorbs capture
                     }
-                    
                     oppToken.position = -1;
                     oppToken.homeColumn = false;
                     captured.push({ playerId: opponent.id, tokenId: oppIndex });

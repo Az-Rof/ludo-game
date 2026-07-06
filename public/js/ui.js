@@ -206,7 +206,6 @@ class LudoUI {
         
         this.socketClient.onPowerupUsed = (data) => {
             this.addSystemChatMessage(`⚡ ${data.playerName} used ${data.powerupType}! ${data.message}`);
-            
             // Animate dice if value was controlled or boosted
             if (data.effect && data.effect.type === 'dice_control') {
                 window.dice?.animateToValue(data.effect.value);
@@ -259,7 +258,6 @@ class LudoUI {
         this.socketClient.onPowerupMessage = (data) => {
             this.addSystemChatMessage(data.message);
         };
-        
         this.socketClient.onPowerupTargetRequired = (data) => {
             const playerObj = window.game.players.find(p => p.name === this.socketClient.player.name);
             if (playerObj) {
@@ -1229,6 +1227,8 @@ class LudoUI {
                 }
             });
             this.renderPowerups();
+        } else {
+            this.socketClient.usePowerup(powerupId, powerupType);
         }
     }
 }

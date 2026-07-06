@@ -107,7 +107,6 @@ class Powerup {
                 result.effect = { type: 'skip_turn', targetPlayerId: params.targetPlayerId };
                 result.message = 'Opponent turn skipped!';
                 break;
-
             case 'DICE_BOOST':
                 if (game.diceValue === 0) {
                     result.message = 'Roll the dice first to use Dice Boost!';
