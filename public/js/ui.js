@@ -415,10 +415,12 @@ class LudoUI {
                     id: t.id,
                     position: t.position,
                     homeColumn: t.homeColumn,
-                    finished: t.finished
+                    finished: t.finished,
+                    shielded: t.shielded || false
                 }));
                 window.game.players[index].powerups = playerState.powerups || [];
                 window.game.players[index].protectedForTurns = playerState.protectedForTurns || 0;
+                window.game.players[index].captureCount = playerState.captureCount || 0;
             }
         });
         

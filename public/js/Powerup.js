@@ -27,7 +27,7 @@ class Powerup {
     static getPowerupTypes() {
         return [
             { id: 'EXTRA_ROLL', name: 'Extra Roll', description: 'Get an additional dice roll', icon: '🎲', rarity: 'common', global: false },
-            { id: 'PROTECTION', name: 'Global Protection', description: 'Protect all players from capture for 1 turn', icon: '🏰', rarity: 'common', global: true },
+            { id: 'PROTECTION', name: 'Protection', description: 'Immune from capture for 1 turn', icon: '🏰', rarity: 'common', global: false },
             { id: 'DOUBLE_MOVE', name: 'Double Move', description: 'Move two tokens this turn', icon: '⚡', rarity: 'rare', global: false },
             { id: 'TELEPORT', name: 'Teleport', description: 'Move a token to any position', icon: '🌀', rarity: 'epic', global: false },
             { id: 'STEAL', name: 'Steal', description: 'Take a random powerup from an opponent', icon: '✂️', rarity: 'rare', global: false },
@@ -63,12 +63,11 @@ class Powerup {
                 break;
                 
             case 'PROTECTION':
-                game.players.forEach(p => {
-                    p.protectedForTurns = 1;
-                });
+                // Protect only the user's tokens for 1 turn (not all players).
+                player.protectedForTurns = 1;
                 result.applied = true;
-                result.effect = { type: 'protection', global: true };
-                result.message = 'Global Protection active! All players immune from capture for 1 turn!';
+                result.effect = { type: 'protection', turns: 1 };
+                result.message = 'Your tokens are protected from capture for 1 turn!';
                 break;
                 
             case 'DOUBLE_MOVE':
@@ -111,10 +110,11 @@ class Powerup {
                 if (game.diceValue === 0) {
                     result.message = 'Roll the dice first to use Dice Boost!';
                 } else {
-                    game.diceValue += 2;
+                    // Clamp to a valid dice value (max 6) so movement math stays sane.
+                    game.diceValue = Math.min(6, game.diceValue + 2);
                     result.applied = true;
                     result.effect = { type: 'dice_boost', newValue: game.diceValue };
-                    result.message = `Dice value boosted by +2 to ${game.diceValue}!`;
+                    result.message = `Dice value boosted to ${game.diceValue}!`;
                 }
                 break;
 
@@ -137,19 +137,26 @@ class Powerup {
             case 'BOMB':
                 if (params.targetPosition !== undefined && params.targetPosition >= 0 && params.targetPosition < 52) {
                     let hitCount = 0;
+                    let shieldedCount = 0;
                     game.players.forEach(p => {
                         p.tokens.forEach(t => {
                             if (!t.homeColumn && !t.finished && t.position === params.targetPosition) {
-                                t.position = -1;
-                                t.homeColumn = false;
-                                t.shielded = false;
-                                hitCount++;
+                                // Shielded tokens absorb the bomb (shield consumed, token stays).
+                                if (t.shielded) {
+                                    t.shielded = false;
+                                    shieldedCount++;
+                                } else {
+                                    t.position = -1;
+                                    t.homeColumn = false;
+                                    hitCount++;
+                                }
                             }
                         });
                     });
                     result.applied = true;
                     result.effect = { type: 'bomb', targetPosition: params.targetPosition };
-                    result.message = `Bomb exploded at position ${params.targetPosition}! ${hitCount} token(s) sent back to base.`;
+                    result.message = `Bomb exploded at position ${params.targetPosition}! ${hitCount} token(s) sent back to base.` +
+                        (shieldedCount > 0 ? ` ${shieldedCount} shielded token(s) absorbed the blast.` : '');
                 } else {
                     result.message = 'Invalid target for bomb!';
                 }
@@ -186,12 +193,18 @@ class Powerup {
                             ownToken.position = oppToken.position;
                             oppToken.position = tempPos;
                             
+                            // Resolve captures caused by the new positions.
+                            const ownCaptured = game.checkCapture(player, params.ownTokenIndex);
+                            const oppCaptured = game.checkCapture(oppPlayer, params.opponentTokenIndex);
+                            
                             result.applied = true;
                             result.effect = { 
                                 type: 'swap_tokens', 
                                 ownTokenIndex: params.ownTokenIndex, 
                                 opponentPlayerId: params.opponentPlayerId, 
-                                opponentTokenIndex: params.opponentTokenIndex 
+                                opponentTokenIndex: params.opponentTokenIndex,
+                                ownCaptured: ownCaptured,
+                                oppCaptured: oppCaptured
                             };
                             result.message = `Swapped positions with ${oppPlayer.name}'s token!`;
                         } else {
@@ -218,21 +231,28 @@ class Powerup {
 
             case 'GLOBAL_BOMB':
                 let globalHitCount = 0;
+                let globalShieldedCount = 0;
                 game.players.forEach(p => {
                     if (p.id !== playerId) {
                         p.tokens.forEach(t => {
                             if (t.position >= 0 && t.position < 52 && !t.homeColumn && !t.finished) {
-                                t.position = -1;
-                                t.homeColumn = false;
-                                t.shielded = false;
-                                globalHitCount++;
+                                // Shielded tokens absorb the blast; shield consumed, token stays.
+                                if (t.shielded) {
+                                    t.shielded = false;
+                                    globalShieldedCount++;
+                                } else {
+                                    t.position = -1;
+                                    t.homeColumn = false;
+                                    globalHitCount++;
+                                }
                             }
                         });
                     }
                 });
                 result.applied = true;
                 result.effect = { type: 'global_bomb' };
-                result.message = `Global Bomb exploded! Sent ${globalHitCount} opponent token(s) back to base!`;
+                result.message = `Global Bomb exploded! Sent ${globalHitCount} opponent token(s) back to base!` +
+                    (globalShieldedCount > 0 ? ` ${globalShieldedCount} shielded token(s) absorbed the blast.` : '');
                 break;
 
             case 'GLOBAL_STEAL':
