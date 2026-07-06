@@ -1,4 +1,5 @@
 // Server-side Ludo Game Logic
+const Powerup = require('./Powerup');
 
 class LudoGame {
     constructor(numPlayers) {
@@ -13,13 +14,18 @@ class LudoGame {
         // Initialize players
         const colors = ['red', 'yellow', 'blue', 'green'];
         for (let i = 0; i < numPlayers; i++) {
-            this.players.push({
+            const player = {
                 id: i,
                 color: colors[i],
                 name: colors[i].charAt(0).toUpperCase() + colors[i].slice(1),
                 tokens: [],
-                isBot: false
-            });
+                isBot: false,
+                powerups: [],
+                protectedForTurns: 0
+            };
+            this.players.push(player);
+            // Grant 1 starting power-up
+            this.grantPowerup(player);
         }
         
         // Initialize tokens
@@ -38,6 +44,7 @@ class LudoGame {
         this.startPositions = [0, 13, 26, 39]; // Red, Yellow, Blue, Green
         this.homeEntries = [50, 11, 24, 37];
         this.safeSquares = [8, 21, 34, 47];
+        this.powerupSquares = [4, 17, 30, 43];
     }
     
     rollDice() {
@@ -108,8 +115,11 @@ class LudoGame {
         
         if (token.position === -1) {
             token.position = this.startPositions[playerIndex];
-            this.checkCapture(player, tokenIndex);
-            return { type: 'enter', position: token.position, captured: null };
+            const captured = this.checkCapture(player, tokenIndex);
+            if (captured) {
+                this.grantPowerup(player);
+            }
+            return { type: 'enter', position: token.position, captured };
         }
         
         if (token.homeColumn) {
@@ -152,6 +162,12 @@ class LudoGame {
         
         token.position = newPos;
         const captured = this.checkCapture(player, tokenIndex);
+        if (captured) {
+            this.grantPowerup(player);
+        }
+        if (this.powerupSquares.includes(newPos)) {
+            this.grantPowerup(player);
+        }
         
         return { type: 'move', from: oldPos, to: newPos, captured };
     }
@@ -196,6 +212,9 @@ class LudoGame {
             
             opponent.tokens.forEach((oppToken, oppIndex) => {
                 if (oppToken.position === token.position && !oppToken.homeColumn && !oppToken.finished) {
+                    // Check for protection
+                    if (opponent.protectedForTurns > 0) return;
+                    
                     oppToken.position = -1;
                     oppToken.homeColumn = false;
                     captured.push({ playerId: opponent.id, tokenId: oppIndex });
@@ -203,7 +222,46 @@ class LudoGame {
             });
         });
         
+        Powerup.checkProtections(this);
         return captured.length > 0 ? captured : null;
+    }
+    
+    // Grant a random powerup to a player
+    grantPowerup(player) {
+        const powerupData = Powerup.getRandomPowerup();
+        if (powerupData) {
+            player.powerups.push({
+                id: Date.now() + Math.random(),
+                type: powerupData.id,
+                name: powerupData.name,
+                icon: powerupData.icon,
+                obtainedAt: Date.now()
+            });
+            return powerupData;
+        }
+        return null;
+    }
+    
+    // Use a powerup
+    usePowerup(player, powerupId, params = {}) {
+        const powerup = player.powerups.find(p => p.id === powerupId);
+        if (!powerup) return { success: false, error: 'Powerup not found' };
+        
+        const result = Powerup.applyPowerup(this, player.id, powerup.type, params);
+        if (result.applied) {
+            player.powerups = player.powerups.filter(p => p.id !== powerupId);
+            
+            // Apply special side effects
+            if (powerup.type === 'SKIP_TURN') {
+                const targetPlayer = this.players.find(p => p.id === parseInt(params.targetPlayerId));
+                if (targetPlayer) {
+                    targetPlayer.skipped = true;
+                }
+            } else if (powerup.type === 'DOUBLE_MOVE') {
+                player.doubleMoveActive = true;
+            }
+        }
+        return result;
     }
     
     checkWin(player) {
@@ -215,17 +273,28 @@ class LudoGame {
     }
     
     endTurn() {
-        if (this.diceValue !== 6) {
-            this.currentPlayer = (this.currentPlayer + 1) % this.numPlayers;
-            this.consecutiveSixes = 0;
-        } else {
-            this.consecutiveSixes++;
-            if (this.consecutiveSixes >= 3) {
+        let safetyCounter = 0;
+        do {
+            if (this.diceValue !== 6) {
                 this.currentPlayer = (this.currentPlayer + 1) % this.numPlayers;
                 this.consecutiveSixes = 0;
+            } else {
+                this.consecutiveSixes++;
+                if (this.consecutiveSixes >= 3) {
+                    this.currentPlayer = (this.currentPlayer + 1) % this.numPlayers;
+                    this.consecutiveSixes = 0;
+                }
             }
-        }
-        this.diceValue = 0;
+            this.diceValue = 0;
+            
+            // Check if next player is marked for skip
+            if (this.players[this.currentPlayer].skipped) {
+                this.players[this.currentPlayer].skipped = false;
+            } else {
+                break;
+            }
+            safetyCounter++;
+        } while (safetyCounter < this.numPlayers);
     }
     
     getState() {
@@ -239,6 +308,8 @@ class LudoGame {
                 name: p.name,
                 color: p.color,
                 isBot: p.isBot,
+                powerups: p.powerups || [],
+                protectedForTurns: p.protectedForTurns || 0,
                 tokens: p.tokens.map(t => ({
                     id: t.id,
                     position: t.position,

@@ -21,6 +21,7 @@ class LudoBoard {
 
     this.layout = this.createLayout();
     this.safeSquares = [8, 21, 34, 47];
+    this.powerupSquares = [4, 17, 30, 43];
     this.editMode = false;
     this.selectedCell = null;
 
@@ -41,7 +42,6 @@ class LudoBoard {
 
   setupEditor() {
     this.canvas.addEventListener("click", (e) => {
-      if (!this.editMode) return;
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.canvas.width / rect.width;
       const scaleY = this.canvas.height / rect.height;
@@ -49,6 +49,13 @@ class LudoBoard {
       const y = (e.clientY - rect.top) * scaleY;
       const c = Math.floor(x / this.cellSize);
       const r = Math.floor(y / this.cellSize);
+
+      if (!this.editMode) {
+        if (this.onCanvasClick) {
+          this.onCanvasClick(r, c);
+        }
+        return;
+      }
       if (r >= 0 && r < this.gridSize && c >= 0 && c < this.gridSize) {
         this.selectedCell = { r, c };
         this.draw();
@@ -325,6 +332,15 @@ class LudoBoard {
             cellSize * 0.1,
           );
         }
+
+        // Power-up squares
+        if (type === 1 && this.isPowerupSquare(r, c)) {
+          this.drawPowerupIcon(
+            ctx,
+            x + cellSize / 2,
+            y + cellSize / 2
+          );
+        }
       }
     }
 
@@ -370,6 +386,23 @@ class LudoBoard {
   isSafeSquare(r, c) {
     const trackPos = this.gridToTrack(r, c);
     return this.safeSquares.includes(trackPos);
+  }
+
+  isPowerupSquare(r, c) {
+    const trackPos = this.gridToTrack(r, c);
+    return this.powerupSquares.includes(trackPos);
+  }
+
+  drawPowerupIcon(ctx, cx, cy) {
+    ctx.save();
+    ctx.fillStyle = "#f1c40f"; // yellow lightning color
+    ctx.font = `bold ${this.cellSize * 0.55}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(241, 196, 15, 0.8)";
+    ctx.shadowBlur = 8;
+    ctx.fillText("⚡", cx, cy);
+    ctx.restore();
   }
 
   gridToTrack(r, c) {

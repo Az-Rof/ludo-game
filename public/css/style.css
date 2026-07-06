@@ -671,3 +671,270 @@ body {
         padding: 32px 24px;
     }
 }
+
+/* === Ludo Powerups Styles === */
+.powerups-container {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 12px var(--shadow);
+    border: 2px solid var(--border);
+    transition: all 0.3s;
+    backdrop-filter: blur(8px);
+}
+
+.powerups-header {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+}
+
+.powerups-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+}
+
+.no-powerups-msg {
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    font-style: italic;
+    padding: 8px 0;
+}
+
+.powerup-card {
+    background: var(--surface-alt);
+    border-radius: 10px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 2px solid var(--border-light);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.powerup-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px var(--shadow-strong);
+}
+
+.powerup-card.common {
+    border-color: var(--border-light);
+}
+
+.powerup-card.rare {
+    border-color: #3498db;
+    background: linear-gradient(180deg, var(--surface-alt), rgba(52, 152, 219, 0.05));
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+}
+
+.powerup-card.epic {
+    border-color: #9b59b6;
+    background: linear-gradient(180deg, var(--surface-alt), rgba(155, 89, 182, 0.05));
+    box-shadow: 0 2px 10px rgba(155, 89, 182, 0.15);
+}
+
+.powerup-card.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.powerup-card.disabled .powerup-btn {
+    pointer-events: none;
+    background: var(--border) !important;
+    color: var(--text-dim) !important;
+}
+
+.powerup-icon {
+    font-size: 1.8rem;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+    transition: transform 0.2s;
+}
+
+.powerup-card:hover .powerup-icon {
+    transform: scale(1.15) rotate(5deg);
+}
+
+.powerup-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text);
+    margin-bottom: 2px;
+}
+
+.powerup-desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.25;
+    margin-bottom: 8px;
+    flex-grow: 1;
+}
+
+.powerup-rarity-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--border);
+    color: var(--text-muted);
+}
+
+.powerup-card.rare .powerup-rarity-badge {
+    background: #3498db;
+    color: #fff;
+}
+
+.powerup-card.epic .powerup-rarity-badge {
+    background: #9b59b6;
+    color: #fff;
+}
+
+.powerup-btn {
+    width: 100%;
+    padding: 6px 0;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    transition: all 0.2s;
+}
+
+.powerup-btn:hover {
+    background: var(--accent-hover);
+}
+
+/* === Custom Modal Overlay Styles === */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeInModal 0.25s ease-out;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    animation: scaleInModal 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleInModal {
+    from { transform: scale(0.85); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-content h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+    text-align: center;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+}
+
+.modal-body label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.modal-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+}
+
+.modal-select:focus {
+    border-color: var(--accent);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-actions button {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    height: auto;
+}
+
+.token-option-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.token-option-btn {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-alt);
+    color: var(--text);
+    padding: 8px 0;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.token-option-btn:hover {
+    border-color: var(--border-light);
+}
+
+.token-option-btn.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
