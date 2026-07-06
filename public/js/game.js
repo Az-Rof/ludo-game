@@ -25,7 +25,8 @@ class LudoGame {
                 color: COLORS[i],
                 name: COLORS[i].charAt(0).toUpperCase() + COLORS[i].slice(1),
                 tokens: [],
-                isBot: i !== 0 // Player 0 is human
+                isBot: i !== 0, // Player 0 is human
+                captureCount: 0
             });
         }
         
@@ -36,7 +37,8 @@ class LudoGame {
                     id: i,
                     position: -1, // -1 means in home base
                     homeColumn: false,
-                    finished: false
+                    finished: false,
+                    shielded: false
                 });
             }
         });
@@ -84,7 +86,7 @@ class LudoGame {
     
     // Check if a track position is blocked by a 2+ same-color blockade
     isBlocked(trackPos, movingPlayerId) {
-        if (this.safeSquares.includes(trackPos)) return false;
+        if (this.safeSquares.includes(trackPos) || this.startPositions.includes(trackPos)) return false;
         const counts = {};
         this.players.forEach(p => {
             if (p.id === movingPlayerId) return;
@@ -209,7 +211,16 @@ class LudoGame {
             if (opponent.id === player.id) return;
             
             opponent.tokens.forEach((oppToken, oppIndex) => {
-                if (oppToken.position === token.position && !oppToken.homeColumn) {
+                if (oppToken.position === token.position && !oppToken.homeColumn && !oppToken.finished) {
+                    // Start squares are safe zones for the owner
+                    if (oppToken.position === this.startPositions[opponent.id]) return;
+                    
+                    // Check for token shield
+                    if (oppToken.shielded) {
+                        oppToken.shielded = false; // Consume shield
+                        return; // Shield absorbs capture
+                    }
+                    
                     // Capture! Send back to home base
                     oppToken.position = -1;
                     oppToken.homeColumn = false;

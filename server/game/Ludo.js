@@ -21,7 +21,8 @@ class LudoGame {
                 tokens: [],
                 isBot: false,
                 powerups: [],
-                protectedForTurns: 0
+                protectedForTurns: 0,
+                captureCount: 0
             };
             this.players.push(player);
             // Grant 1 starting power-up
@@ -35,7 +36,8 @@ class LudoGame {
                     id: i,
                     position: -1,
                     homeColumn: false,
-                    finished: false
+                    finished: false,
+                    shielded: false
                 });
             }
         });
@@ -45,6 +47,7 @@ class LudoGame {
         this.homeEntries = [50, 11, 24, 37];
         this.safeSquares = [8, 21, 34, 47];
         this.powerupSquares = [4, 17, 30, 43];
+        this.turnCount = 0;
     }
     
     rollDice() {
@@ -117,7 +120,11 @@ class LudoGame {
             token.position = this.startPositions[playerIndex];
             const captured = this.checkCapture(player, tokenIndex);
             if (captured) {
-                this.grantPowerup(player);
+                player.captureCount = (player.captureCount || 0) + captured.length;
+                while (player.captureCount >= 2) {
+                    player.captureCount -= 2;
+                    this.grantPowerup(player);
+                }
             }
             return { type: 'enter', position: token.position, captured };
         }
@@ -163,7 +170,11 @@ class LudoGame {
         token.position = newPos;
         const captured = this.checkCapture(player, tokenIndex);
         if (captured) {
-            this.grantPowerup(player);
+            player.captureCount = (player.captureCount || 0) + captured.length;
+            while (player.captureCount >= 2) {
+                player.captureCount -= 2;
+                this.grantPowerup(player);
+            }
         }
         if (this.powerupSquares.includes(newPos)) {
             this.grantPowerup(player);
@@ -188,7 +199,7 @@ class LudoGame {
     
     // Check if a track position is blocked by a 2+ same-color blockade
     isBlocked(trackPos, movingPlayerId) {
-        if (this.safeSquares.includes(trackPos)) return false;
+        if (this.safeSquares.includes(trackPos) || this.startPositions.includes(trackPos)) return false;
         const counts = {};
         this.players.forEach(p => {
             if (p.id === movingPlayerId) return;
@@ -212,9 +223,19 @@ class LudoGame {
             
             opponent.tokens.forEach((oppToken, oppIndex) => {
                 if (oppToken.position === token.position && !oppToken.homeColumn && !oppToken.finished) {
+                    // Start squares are safe zones for the owner
+                    if (oppToken.position === this.startPositions[opponent.id]) return;
+                    
                     // Check for protection
                     if (opponent.protectedForTurns > 0) return;
                     
+                    // Check for token shield
+                    if (oppToken.shielded) {
+                        oppToken.shielded = false; // Consume shield
+                        this.shieldAbsorbs = this.shieldAbsorbs || [];
+                        this.shieldAbsorbs.push({ playerId: opponent.id, tokenId: oppIndex, byPlayerId: player.id });
+                        return; // Shield absorbs capture
+                    }
                     oppToken.position = -1;
                     oppToken.homeColumn = false;
                     captured.push({ playerId: opponent.id, tokenId: oppIndex });
@@ -295,6 +316,26 @@ class LudoGame {
             }
             safetyCounter++;
         } while (safetyCounter < this.numPlayers);
+        
+        // Turn tracking for power-up squares relocation
+        this.turnCount = (this.turnCount || 0) + 1;
+        if (this.turnCount >= 3 * this.numPlayers) {
+            this.turnCount = 0;
+            this.relocatePowerupSquares();
+        }
+    }
+    
+    relocatePowerupSquares() {
+        const forbidden = [...this.safeSquares, ...this.startPositions];
+        const newSquares = [];
+        while (newSquares.length < 4) {
+            const rand = Math.floor(Math.random() * 52);
+            if (!forbidden.includes(rand) && !newSquares.includes(rand)) {
+                newSquares.push(rand);
+            }
+        }
+        this.powerupSquares = newSquares;
+        this.powerupRelocated = true; // flag to notify socket clients
     }
     
     getState() {
@@ -302,6 +343,7 @@ class LudoGame {
             currentPlayer: this.currentPlayer,
             diceValue: this.diceValue,
             gameOver: this.gameOver,
+            powerupSquares: this.powerupSquares,
             winner: this.winner ? { id: this.winner.id, name: this.winner.name, color: this.winner.color } : null,
             players: this.players.map(p => ({
                 id: p.id,
@@ -310,11 +352,13 @@ class LudoGame {
                 isBot: p.isBot,
                 powerups: p.powerups || [],
                 protectedForTurns: p.protectedForTurns || 0,
+                captureCount: p.captureCount || 0,
                 tokens: p.tokens.map(t => ({
                     id: t.id,
                     position: t.position,
                     homeColumn: t.homeColumn,
-                    finished: t.finished
+                    finished: t.finished,
+                    shielded: t.shielded || false
                 }))
             }))
         };

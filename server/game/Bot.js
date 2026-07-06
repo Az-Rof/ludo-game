@@ -109,7 +109,12 @@ class Bot {
                 const targetPos = (token.position + this.game.diceValue) % 52;
                 const wouldCapture = this.game.players.some(opponent => {
                     if (opponent.id === player.id) return false;
-                    return opponent.tokens.some(t => t.position === targetPos && !t.homeColumn);
+                    return opponent.tokens.some(t => 
+                        t.position === targetPos && 
+                        !t.homeColumn && 
+                        !this.game.safeSquares.includes(targetPos) && 
+                        targetPos !== this.game.startPositions[opponent.id]
+                    );
                 });
                 
                 if (wouldCapture) {
