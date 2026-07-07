@@ -496,7 +496,7 @@ io.on('connection', (socket) => {
         const isTargetable = ['TELEPORT', 'STEAL', 'SKIP_TURN', 'SHIELD', 'BOMB', 'DICE_CONTROL', 'SWAP_TOKENS'].includes(powerup.type);
         
         // 1. If powerup is targetable and player hasn't passed target params yet (first use click)
-        if (isTargetable && !data.params) {
+        if (isTargetable && (!data.params || Object.keys(data.params).length === 0)) {
             // Roll gacha target type: 50% Selected, 50% Random
             const targetGacha = Math.random() < 0.5 ? 'selected' : 'random';
             
@@ -525,6 +525,22 @@ io.on('connection', (socket) => {
                         effect: result.effect,
                         state: game.getState()
                     });
+                    
+                    if (result.effect && result.effect.captured) {
+                        io.to(roomCode).emit('tokenCaptured', {
+                            captures: result.effect.captured,
+                            capturer: { playerId: player.id, playerName: player.name }
+                        });
+                    }
+                    if (game.shieldAbsorbs && game.shieldAbsorbs.length > 0) {
+                        game.shieldAbsorbs.forEach(absorb => {
+                            const victim = game.players.find(p => p.id === absorb.playerId);
+                            io.to(roomCode).emit('powerupMessage', {
+                                message: `🛡️ ${victim.name}'s token shield absorbed a hit from ${player.name}!`
+                            });
+                        });
+                        game.shieldAbsorbs = [];
+                    }
                 } else {
                     // Fallback to manual selection if random choice failed to find valid targets
                     socket.emit('powerupTargetRequired', { powerupId: data.powerupId, powerupType: powerup.type });
@@ -552,6 +568,22 @@ io.on('connection', (socket) => {
                 effect: result.effect,
                 state: game.getState()
             });
+            
+            if (result.effect && result.effect.captured) {
+                io.to(roomCode).emit('tokenCaptured', {
+                    captures: result.effect.captured,
+                    capturer: { playerId: player.id, playerName: player.name }
+                });
+            }
+            if (game.shieldAbsorbs && game.shieldAbsorbs.length > 0) {
+                game.shieldAbsorbs.forEach(absorb => {
+                    const victim = game.players.find(p => p.id === absorb.playerId);
+                    io.to(roomCode).emit('powerupMessage', {
+                        message: `🛡️ ${victim.name}'s token shield absorbed a hit from ${player.name}!`
+                    });
+                });
+                game.shieldAbsorbs = [];
+            }
             
             console.log(`Player ${player.name} successfully used ${powerup.type} in room ${roomCode}`);
         } else {

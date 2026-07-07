@@ -215,7 +215,7 @@ class LudoGame {
     
     checkCapture(player, tokenIndex) {
         const token = player.tokens[tokenIndex];
-        if (this.safeSquares.includes(token.position)) return null;
+        if (this.safeSquares.includes(token.position) || this.startPositions.includes(token.position)) return null;
         const captured = [];
         
         this.players.forEach(opponent => {
@@ -223,8 +223,8 @@ class LudoGame {
             
             opponent.tokens.forEach((oppToken, oppIndex) => {
                 if (oppToken.position === token.position && !oppToken.homeColumn && !oppToken.finished) {
-                    // Start squares are safe zones for the owner
-                    if (oppToken.position === this.startPositions[opponent.id]) return;
+                    // Start squares are safe zones for everyone
+                    if (this.startPositions.includes(oppToken.position)) return;
                     
                     // Check for protection
                     if (opponent.protectedForTurns > 0) return;
@@ -243,7 +243,6 @@ class LudoGame {
             });
         });
         
-        Powerup.checkProtections(this);
         return captured.length > 0 ? captured : null;
     }
     
@@ -316,6 +315,11 @@ class LudoGame {
             }
             safetyCounter++;
         } while (safetyCounter < this.numPlayers);
+        
+        // Decrement protection turns for the player whose turn is starting
+        if (this.players[this.currentPlayer].protectedForTurns > 0) {
+            this.players[this.currentPlayer].protectedForTurns--;
+        }
         
         // Turn tracking for power-up squares relocation
         this.turnCount = (this.turnCount || 0) + 1;

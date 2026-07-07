@@ -25,6 +25,7 @@ class SocketClient {
         this.onDoubleMoveActive = null;
         this.onPowerupMessage = null;
         this.onPowerupTargetRequired = null;
+        this.onPowerupResult = null;
     }
     
     connect() {
@@ -42,6 +43,10 @@ class SocketClient {
         
         this.socket.on('powerupTargetRequired', (data) => {
             if (this.onPowerupTargetRequired) this.onPowerupTargetRequired(data);
+        });
+
+        this.socket.on('powerupResult', (data) => {
+            if (this.onPowerupResult) this.onPowerupResult(data);
         });
         
         // Room events
