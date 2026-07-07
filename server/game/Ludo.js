@@ -293,6 +293,14 @@ class LudoGame {
     }
     
     endTurn() {
+        // Decrement protection for all players at the end of every turn so it
+        // reliably expires even when no capture was attempted. (Powerup.checkProtections
+        // in checkCapture only runs when a capture is tried, which previously
+        // left protection permanent if no one attacked the protected player.)
+        this.players.forEach(p => {
+            if (p.protectedForTurns > 0) p.protectedForTurns--;
+        });
+
         let safetyCounter = 0;
         do {
             if (this.diceValue !== 6) {
@@ -307,7 +315,10 @@ class LudoGame {
             }
             this.diceValue = 0;
             
-            // Check if next player is marked for skip
+            // Check if next player is marked for skip. Loop until we find a
+            // player who is NOT skipped, or until we've checked every player
+            // once (safety cap) -- in the latter case the current player simply
+            // gets their turn (everyone was skipped, so play resumes normally).
             if (this.players[this.currentPlayer].skipped) {
                 this.players[this.currentPlayer].skipped = false;
             } else {

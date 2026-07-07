@@ -426,6 +426,7 @@ class LudoUI {
                 }));
                 window.game.players[index].powerups = playerState.powerups || [];
                 window.game.players[index].protectedForTurns = playerState.protectedForTurns || 0;
+                window.game.players[index].captureCount = playerState.captureCount || 0;
             }
         });
         
